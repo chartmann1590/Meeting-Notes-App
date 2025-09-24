@@ -121,6 +121,187 @@ echo.
 echo [INFO] Currently installed models:
 ollama list
 
+REM SSL Certificate Setup
+echo.
+echo ========================================
+echo   SSL Certificate Setup
+echo ========================================
+echo.
+echo [WARNING] Web browsers require HTTPS to access microphone permissions.
+echo [WARNING] Without HTTPS, you won't be able to use the microphone feature.
+echo.
+echo [INFO] Options:
+echo [INFO]   1. Generate self-signed certificates (recommended for development)
+echo [INFO]   2. Skip SSL setup (microphone won't work in browsers)
+echo.
+
+set /p SSL_SETUP="Would you like to generate self-signed SSL certificates? (y/n): "
+if /i "%SSL_SETUP%"=="y" (
+    echo.
+    echo [INFO] Checking OpenSSL availability...
+    openssl version >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo [WARNING] OpenSSL is not installed!
+        echo.
+        echo [INFO] Attempting to install OpenSSL automatically...
+        
+        REM Try to install via Chocolatey first
+        choco --version >nul 2>&1
+        if %errorlevel% equ 0 (
+            echo [INFO] Installing OpenSSL via Chocolatey...
+            choco install openssl -y
+            if %errorlevel% equ 0 (
+                echo [SUCCESS] OpenSSL installed successfully via Chocolatey
+                REM Refresh PATH
+                call refreshenv
+            ) else (
+                echo [ERROR] Failed to install OpenSSL via Chocolatey
+                goto openssl_manual_install
+            )
+        ) else (
+            REM Try to install via winget
+            winget --version >nul 2>&1
+            if %errorlevel% equ 0 (
+                echo [INFO] Installing OpenSSL via winget...
+                winget install --id ShiningLight.OpenSSL -e --accept-package-agreements --accept-source-agreements
+                if %errorlevel% equ 0 (
+                    echo [SUCCESS] OpenSSL installed successfully via winget
+                ) else (
+                    echo [ERROR] Failed to install OpenSSL via winget
+                    goto openssl_manual_install
+                )
+            ) else (
+                goto openssl_manual_install
+            )
+        )
+        
+        REM Verify installation
+        openssl version >nul 2>&1
+        if %errorlevel% neq 0 (
+            echo [ERROR] OpenSSL installation completed but not found in PATH
+            echo [INFO] You may need to restart your terminal or add OpenSSL to PATH manually
+            goto openssl_manual_install
+        )
+        
+        echo [SUCCESS] OpenSSL is now available
+        goto openssl_ready
+        
+        :openssl_manual_install
+        echo.
+        echo [ERROR] Could not install OpenSSL automatically
+        echo.
+        echo [INFO] Please install OpenSSL manually:
+        echo   • Download from: https://slproweb.com/products/Win32OpenSSL.html
+        echo   • Or install via Chocolatey: choco install openssl
+        echo   • Or install via winget: winget install ShiningLight.OpenSSL
+        echo.
+        echo [WARNING] Skipping SSL setup. Microphone access will not work in browsers.
+        set SSL_AVAILABLE=false
+        goto ssl_setup_complete
+        
+        :openssl_ready
+    )
+    
+    echo [SUCCESS] OpenSSL is available
+    
+    REM Check if certificates already exist
+    if exist "ssl-certs\server.crt" if exist "ssl-certs\server.key" (
+        echo.
+        echo [WARNING] SSL certificates already exist in ssl-certs
+        echo.
+        set /p REGENERATE="Would you like to regenerate them? (y/n): "
+        if /i not "!REGENERATE!"=="y" (
+            echo [SUCCESS] Using existing SSL certificates
+            set SSL_AVAILABLE=true
+            goto ssl_setup_complete
+        )
+    )
+    
+    echo.
+    echo [INFO] Generating SSL certificates for domain: localhost
+    
+    REM Create certificates directory
+    if not exist "ssl-certs" mkdir "ssl-certs"
+    
+    REM Generate private key
+    echo [INFO] Generating private key...
+    openssl genrsa -out "ssl-certs\server.key" 2048
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to generate private key
+        set SSL_AVAILABLE=false
+        goto ssl_setup_complete
+    )
+    
+    REM Generate certificate signing request
+    echo [INFO] Generating certificate signing request...
+    openssl req -new -key "ssl-certs\server.key" -out "ssl-certs\server.csr" -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=localhost"
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to generate certificate signing request
+        set SSL_AVAILABLE=false
+        goto ssl_setup_complete
+    )
+    
+    REM Create OpenSSL config file for SAN
+    echo [INFO] Creating OpenSSL configuration...
+    (
+    echo [req]
+    echo distinguished_name = req_distinguished_name
+    echo req_extensions = v3_req
+    echo prompt = no
+    echo.
+    echo [req_distinguished_name]
+    echo C = US
+    echo ST = State
+    echo L = City
+    echo O = Organization
+    echo OU = Unit
+    echo CN = localhost
+    echo.
+    echo [v3_req]
+    echo keyUsage = keyEncipherment, dataEncipherment
+    echo extendedKeyUsage = serverAuth
+    echo subjectAltName = @alt_names
+    echo.
+    echo [alt_names]
+    echo DNS.1 = localhost
+    echo DNS.2 = localhost
+    echo IP.1 = 127.0.0.1
+    echo IP.2 = ::1
+    ) > "ssl-certs\openssl.conf"
+    
+    REM Generate self-signed certificate
+    echo [INFO] Generating self-signed certificate...
+    openssl x509 -req -days 365 -in "ssl-certs\server.csr" -signkey "ssl-certs\server.key" -out "ssl-certs\server.crt" -extensions v3_req -extfile "ssl-certs\openssl.conf"
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to generate certificate
+        set SSL_AVAILABLE=false
+        goto ssl_setup_complete
+    )
+    
+    REM Clean up temporary files
+    del "ssl-certs\server.csr" 2>nul
+    del "ssl-certs\openssl.conf" 2>nul
+    
+    echo.
+    echo [SUCCESS] SSL certificates generated successfully!
+    echo [INFO] Certificate files:
+    echo [INFO]   • Private Key: ssl-certs\server.key
+    echo [INFO]   • Certificate: ssl-certs\server.crt
+    echo.
+    echo [WARNING] Important notes:
+    echo [WARNING]   • These are self-signed certificates for development only
+    echo [WARNING]   • Your browser will show a security warning - this is normal
+    echo [WARNING]   • Click 'Advanced' and 'Proceed to localhost' to continue
+    echo [WARNING]   • For production, use certificates from a trusted CA
+    echo.
+    set SSL_AVAILABLE=true
+) else (
+    echo [WARNING] Skipping SSL setup. Microphone access will not work in browsers.
+    set SSL_AVAILABLE=false
+)
+
+:ssl_setup_complete
+
 echo.
 echo ========================================
 echo   Setup Complete!
@@ -136,9 +317,18 @@ set /p START_APP="Would you like to start the application now? (y/n): "
 if /i "%START_APP%"=="y" (
     echo.
     echo [INFO] Starting MeetingScribe AI...
-    echo [SUCCESS] Application will be available at:
-    echo [SUCCESS]   Frontend: http://localhost:3000
-    echo [SUCCESS]   Backend:  http://localhost:3001
+    if "%SSL_AVAILABLE%"=="true" (
+        echo [SUCCESS] Application will be available at:
+        echo [SUCCESS]   Frontend (HTTPS): https://localhost:3000
+        echo [SUCCESS]   Backend (HTTPS):  https://localhost:3443
+        echo [SUCCESS]   Backend (HTTP):   http://localhost:3001
+        echo [SUCCESS]   🎤 Microphone access enabled via HTTPS
+    ) else (
+        echo [SUCCESS] Application will be available at:
+        echo [SUCCESS]   Frontend: http://localhost:3000
+        echo [SUCCESS]   Backend:  http://localhost:3001
+        echo [WARNING]   ⚠️  Microphone access requires HTTPS
+    )
     echo.
     echo [INFO] Press Ctrl+C to stop the application
     echo.

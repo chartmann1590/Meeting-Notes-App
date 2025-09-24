@@ -188,9 +188,206 @@ pull_models() {
     fi
 }
 
+# Function to install OpenSSL on different systems
+install_openssl() {
+    print_status "Installing OpenSSL..."
+    
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        if command_exists brew; then
+            brew install openssl
+        else
+            print_error "Homebrew not found. Please install OpenSSL manually:"
+            print_status "  brew install openssl"
+            return 1
+        fi
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        # Linux
+        if command_exists apt-get; then
+            # Ubuntu/Debian
+            sudo apt-get update
+            sudo apt-get install -y openssl
+        elif command_exists yum; then
+            # CentOS/RHEL
+            sudo yum install -y openssl
+        elif command_exists dnf; then
+            # Fedora
+            sudo dnf install -y openssl
+        elif command_exists pacman; then
+            # Arch Linux
+            sudo pacman -S --noconfirm openssl
+        elif command_exists zypper; then
+            # openSUSE
+            sudo zypper install -y openssl
+        else
+            print_error "Unsupported Linux distribution. Please install OpenSSL manually."
+            return 1
+        fi
+    else
+        print_error "Unsupported operating system. Please install OpenSSL manually."
+        return 1
+    fi
+}
+
+# Function to check if OpenSSL is available and install if needed
+check_openssl() {
+    if ! command -v openssl >/dev/null 2>&1; then
+        print_warning "OpenSSL is not installed"
+        echo ""
+        read -p "Would you like to install OpenSSL automatically? (y/n): " -n 1 -r
+        echo ""
+        
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if install_openssl; then
+                print_success "OpenSSL installed successfully"
+                return 0
+            else
+                print_error "Failed to install OpenSSL automatically"
+                print_warning "Please install OpenSSL manually:"
+                echo "  • Ubuntu/Debian: sudo apt-get install openssl"
+                echo "  • CentOS/RHEL: sudo yum install openssl"
+                echo "  • macOS: brew install openssl"
+                return 1
+            fi
+        else
+            print_error "OpenSSL installation required for SSL certificate generation"
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# Function to generate SSL certificates directly
+generate_ssl_certificates() {
+    local cert_dir="./ssl-certs"
+    local domain="localhost"
+    
+    print_status "Generating SSL certificates for domain: $domain"
+    
+    # Create certificates directory
+    mkdir -p "$cert_dir"
+    
+    # Generate private key
+    print_status "Generating private key..."
+    openssl genrsa -out "$cert_dir/server.key" 2048
+    
+    # Generate certificate signing request
+    print_status "Generating certificate signing request..."
+    openssl req -new -key "$cert_dir/server.key" -out "$cert_dir/server.csr" -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=$domain"
+    
+    # Generate self-signed certificate
+    print_status "Generating self-signed certificate..."
+    openssl x509 -req -days 365 -in "$cert_dir/server.csr" -signkey "$cert_dir/server.key" -out "$cert_dir/server.crt" -extensions v3_req -extfile <(
+        echo "[req]"
+        echo "distinguished_name = req_distinguished_name"
+        echo "req_extensions = v3_req"
+        echo "prompt = no"
+        echo ""
+        echo "[req_distinguished_name]"
+        echo "C = US"
+        echo "ST = State"
+        echo "L = City"
+        echo "O = Organization"
+        echo "OU = Unit"
+        echo "CN = $domain"
+        echo ""
+        echo "[v3_req]"
+        echo "keyUsage = keyEncipherment, dataEncipherment"
+        echo "extendedKeyUsage = serverAuth"
+        echo "subjectAltName = @alt_names"
+        echo ""
+        echo "[alt_names]"
+        echo "DNS.1 = $domain"
+        echo "DNS.2 = localhost"
+        echo "IP.1 = 127.0.0.1"
+        echo "IP.2 = ::1"
+    )
+    
+    # Set proper permissions
+    chmod 600 "$cert_dir/server.key"
+    chmod 644 "$cert_dir/server.crt"
+    
+    # Clean up CSR file
+    rm "$cert_dir/server.csr"
+    
+    print_success "SSL certificates generated successfully!"
+    print_status "Certificate files:"
+    print_status "  • Private Key: $cert_dir/server.key"
+    print_status "  • Certificate: $cert_dir/server.crt"
+    
+    return 0
+}
+
+# Function to setup SSL certificates
+setup_ssl_certificates() {
+    print_status "🔒 SSL Certificate Setup"
+    print_status "========================"
+    echo ""
+    print_warning "Web browsers require HTTPS to access microphone permissions."
+    print_warning "Without HTTPS, you won't be able to use the microphone feature."
+    echo ""
+    print_status "Options:"
+    print_status "  1. Generate self-signed certificates (recommended for development)"
+    print_status "  2. Skip SSL setup (microphone won't work in browsers)"
+    echo ""
+    
+    while true; do
+        read -p "Would you like to generate self-signed SSL certificates? (y/n): " -n 1 -r
+        echo ""
+        case $REPLY in
+            [Yy]* ) 
+                # Check if certificates already exist
+                if [ -f "./ssl-certs/server.crt" ] && [ -f "./ssl-certs/server.key" ]; then
+                    print_warning "SSL certificates already exist in ./ssl-certs"
+                    echo ""
+                    read -p "Would you like to regenerate them? (y/n): " -n 1 -r
+                    echo ""
+                    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                        print_success "Using existing SSL certificates"
+                        return 0
+                    fi
+                fi
+                
+                # Check if OpenSSL is available
+                if ! check_openssl; then
+                    print_error "Cannot generate SSL certificates without OpenSSL"
+                    return 1
+                fi
+                
+                # Generate certificates directly
+                print_status "Generating SSL certificates..."
+                if generate_ssl_certificates; then
+                    print_success "SSL certificates generated successfully!"
+                    echo ""
+                    print_warning "Important notes:"
+                    print_warning "  • These are self-signed certificates for development only"
+                    print_warning "  • Your browser will show a security warning - this is normal"
+                    print_warning "  • Click 'Advanced' and 'Proceed to localhost' to continue"
+                    print_warning "  • For production, use certificates from a trusted CA"
+                    return 0
+                else
+                    print_error "Failed to generate SSL certificates"
+                    return 1
+                fi
+                ;;
+            [Nn]* ) 
+                print_warning "Skipping SSL setup. Microphone access will not work in browsers."
+                return 1
+                ;;
+            * ) print_warning "Please answer yes (y) or no (n).";;
+        esac
+    done
+}
+
 # Function to start the application
 start_application() {
     print_status "Starting MeetingScribe AI..."
+    
+    # Check if SSL certificates exist
+    local ssl_available=false
+    if [ -f "./ssl-certs/server.crt" ] && [ -f "./ssl-certs/server.key" ]; then
+        ssl_available=true
+    fi
     
     # Check if user wants to start the app
     echo ""
@@ -199,9 +396,18 @@ start_application() {
     
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_status "Starting the application..."
-        print_success "Application will be available at:"
-        print_success "  Frontend: http://localhost:3000"
-        print_success "  Backend:  http://localhost:3001"
+        if [ "$ssl_available" = true ]; then
+            print_success "Application will be available at:"
+            print_success "  Frontend (HTTPS): https://localhost:3000"
+            print_success "  Backend (HTTPS):  https://localhost:3443"
+            print_success "  Backend (HTTP):   http://localhost:3001"
+            print_success "  🎤 Microphone access enabled via HTTPS"
+        else
+            print_success "Application will be available at:"
+            print_success "  Frontend: http://localhost:3000"
+            print_success "  Backend:  http://localhost:3001"
+            print_warning "  ⚠️  Microphone access requires HTTPS"
+        fi
         echo ""
         print_status "Press Ctrl+C to stop the application"
         echo ""
@@ -309,7 +515,11 @@ main() {
         exit 1
     fi
     
-    # Step 6: Final setup and start
+    # Step 6: Setup SSL certificates
+    print_header "🔒 Step 5: SSL Certificate Setup..."
+    setup_ssl_certificates
+    
+    # Step 7: Final setup and start
     print_header "🎉 Setup Complete!"
     echo ""
     print_success "MeetingScribe AI is ready to use!"
