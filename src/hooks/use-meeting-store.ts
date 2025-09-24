@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { chatService } from '@/lib/chat';
-import { getMeetings, saveMeeting as saveMeetingApi } from '@/lib/api';
-import type { MeetingRecord } from 'worker/types';
+import { getMeetings, saveMeeting as saveMeetingApi, type MeetingRecord } from '@/lib/api';
 export type Summary = {
   summary: string;
   keyPoints: string[];
@@ -58,40 +56,26 @@ export const useMeetingStore = create<MeetingState & MeetingActions>()(
         return;
       }
       set({ isSummarizing: true, error: null });
-      const prompt = `
-        You are an expert meeting assistant. Please analyze the following meeting transcript and provide a structured summary.
-        The output must be a valid JSON object with the following keys: "summary", "keyPoints", "actionItems", "decisions".
-        - "summary": A concise paragraph summarizing the entire meeting.
-        - "keyPoints": An array of strings, with each string being a crucial point discussed.
-        - "actionItems": An array of strings, with each string being a clear, actionable task assigned to someone.
-        - "decisions": An array of strings, with each string being a final decision made during the meeting.
-        The entire response should be only the JSON object, without any markdown formatting or surrounding text.
-        Here is the transcript:
-        ---
-        ${transcript}
-        ---
-      `;
+      
       try {
-        const summaryChatService = new (chatService as any).constructor();
-        let fullResponse = '';
-        await new Promise<void>((resolve, reject) => {
-            summaryChatService.sendMessage(prompt, 'openai/gpt-4o', (chunk: string) => {
-                fullResponse += chunk;
-            }).then(() => resolve()).catch((err: any) => reject(err));
+        const response = await fetch('/api/summarize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ transcript }),
         });
-        const jsonResponseMatch = fullResponse.match(/```json\n([\s\S]*?)\n```|({[\s\S]*})/);
-        let jsonString = '';
-        if (jsonResponseMatch) {
-            jsonString = jsonResponseMatch[1] || jsonResponseMatch[2];
-        } else {
-            jsonString = fullResponse;
+
+        if (!response.ok) {
+          throw new Error(`Summary generation failed: ${response.status}`);
         }
-        try {
-            const parsedSummary: Summary = JSON.parse(jsonString);
-            set({ summary: parsedSummary, isSummarizing: false });
-        } catch (e) {
-            console.error("Failed to parse summary JSON:", e, "Raw response:", fullResponse);
-            throw new Error("Invalid summary format from AI. Expected a JSON object.");
+
+        const result = await response.json();
+        
+        if (result.success && result.data.summary) {
+          set({ summary: result.data.summary, isSummarizing: false });
+        } else {
+          throw new Error(result.error || 'Summary generation failed');
         }
       } catch (error) {
         console.error("Error generating summary:", error);
