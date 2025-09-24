@@ -86,12 +86,80 @@ check_docker_compose() {
     print_success "Docker Compose is available"
 }
 
+# Function to check if Ollama is already running locally
+check_ollama_running() {
+    print_status "Checking if Ollama is already running locally..."
+    
+    # Check if Ollama is accessible on the default port
+    if curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then
+        print_success "Ollama is already running locally on port 11434"
+        return 0
+    fi
+    
+    # Check if Ollama process is running
+    if pgrep -x "ollama" >/dev/null 2>&1; then
+        print_warning "Ollama process is running but not accessible on port 11434"
+        return 1
+    fi
+    
+    print_status "Ollama is not running locally"
+    return 1
+}
+
+# Function to check if required models are available in local Ollama
+check_local_models() {
+    print_status "Checking for required AI models in local Ollama..."
+    
+    # Check for Whisper model
+    if curl -s http://localhost:11434/api/tags | grep -q "whisper"; then
+        print_success "Whisper model is available locally"
+    else
+        print_warning "Whisper model not found locally"
+        return 1
+    fi
+    
+    # Check for Llama model
+    if curl -s http://localhost:11434/api/tags | grep -q "llama3.2:3b"; then
+        print_success "Llama 3.2 model is available locally"
+    else
+        print_warning "Llama 3.2 model not found locally"
+        return 1
+    fi
+    
+    return 0
+}
+
 # Function to pull AI models
 pull_models() {
     print_status "Setting up AI models..."
     
-    # Start Ollama service first
-    print_status "Starting Ollama service..."
+    # Check if Ollama is already running locally
+    if check_ollama_running; then
+        print_status "Using existing local Ollama installation"
+        
+        # Check if required models are available locally
+        if check_local_models; then
+            print_success "All required models are available locally"
+            print_status "Skipping Docker Ollama setup - using local installation"
+            return 0
+        else
+            print_warning "Local Ollama is running but missing required models"
+            echo
+            print_status "You can install the missing models manually:"
+            print_status "  • For Whisper: ollama pull whisper"
+            print_status "  • For Llama: ollama pull llama3.2:3b"
+            echo
+            read -p "Would you like to continue with Docker setup instead? (y/n): " -n 1 -r
+            echo ""
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                print_error "Please install the required models manually or choose Docker setup"
+                exit 1
+            fi
+        fi
+    fi
+    
+    # Start Ollama service via Docker
+    print_status "Starting Ollama service via Docker..."
     docker-compose up -d ollama
     
     # Wait for Ollama to be ready
@@ -329,30 +397,75 @@ setup_ssl_certificates() {
 start_application() {
     print_status "Building and starting the application..."
     
-    # Build and start all services
-    docker-compose up -d --build
-    
-    print_success "Application started successfully!"
+    # Check if we're using local Ollama
+    if check_ollama_running && check_local_models; then
+        print_status "Using local Ollama - starting application without Docker Ollama service..."
+        
+        # Create a temporary docker-compose override for local Ollama
+        print_status "Creating temporary configuration for local Ollama..."
+        cat > docker-compose.override.yml << EOF
+version: '3.8'
+services:
+  app:
+    environment:
+      - NODE_ENV=production
+      - OLLAMA_API_URL=http://host.docker.internal:11434/api/generate
+      - WHISPER_MODEL=whisper
+      - OLLAMA_MODEL=llama3.2:3b
+      - HTTPS_PORT=3443
+    depends_on: []
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+EOF
+        
+        # Start only the app service, not the ollama service
+        docker-compose up -d --build app
+        
+        # Wait a moment for the app to start
+        sleep 5
+        
+        print_success "Application started successfully with local Ollama!"
+    else
+        print_status "Starting application with Docker Ollama service..."
+        
+        # Build and start all services
+        docker-compose up -d --build
+        
+        print_success "Application started successfully!"
+    fi
 }
 
 # Function to show final instructions
 show_final_instructions() {
     local ssl_available=${1:-1}
+    local using_local_ollama=${2:-0}
     
     echo
-    print_success "🎉 MeetingScribe AI is now running in Docker!"
+    if [ $using_local_ollama -eq 1 ]; then
+        print_success "🎉 MeetingScribe AI is now running with local Ollama!"
+    else
+        print_success "🎉 MeetingScribe AI is now running in Docker!"
+    fi
     echo
     echo -e "${CYAN}Access your application:${NC}"
     if [ $ssl_available -eq 0 ]; then
         echo "  • Frontend (HTTPS): https://localhost:3000"
         echo "  • Backend (HTTPS):  https://localhost:3443"
         echo "  • Backend (HTTP):   http://localhost:3001"
-        echo "  • Ollama API:       http://localhost:11434"
+        if [ $using_local_ollama -eq 1 ]; then
+            echo "  • Ollama API:       http://localhost:11434 (local)"
+        else
+            echo "  • Ollama API:       http://localhost:11434 (Docker)"
+        fi
         echo "  • 🎤 Microphone access enabled via HTTPS"
     else
         echo "  • Frontend: http://localhost:3000"
         echo "  • Backend API: http://localhost:3001"
-        echo "  • Ollama API: http://localhost:11434"
+        if [ $using_local_ollama -eq 1 ]; then
+            echo "  • Ollama API: http://localhost:11434 (local)"
+        else
+            echo "  • Ollama API: http://localhost:11434 (Docker)"
+        fi
         echo "  • ⚠️  Microphone access requires HTTPS"
     fi
     echo
@@ -360,7 +473,12 @@ show_final_instructions() {
     echo "  • View logs: docker-compose logs -f"
     echo "  • Stop services: docker-compose down"
     echo "  • Restart services: docker-compose restart"
-    echo "  • Update models: docker-compose exec ollama ollama pull <model-name>"
+    if [ $using_local_ollama -eq 1 ]; then
+        echo "  • Update models: ollama pull <model-name>"
+        echo "  • List models: ollama list"
+    else
+        echo "  • Update models: docker-compose exec ollama ollama pull <model-name>"
+    fi
     echo
     echo -e "${CYAN}To stop the application:${NC}"
     echo "  docker-compose down"
@@ -375,6 +493,11 @@ cleanup() {
     if [ $? -ne 0 ]; then
         print_error "Setup failed. Cleaning up..."
         docker-compose down >/dev/null 2>&1 || true
+    fi
+    
+    # Clean up temporary override file if it exists
+    if [ -f "docker-compose.override.yml" ]; then
+        rm -f docker-compose.override.yml
     fi
 }
 
@@ -392,6 +515,12 @@ main() {
     # Pull AI models
     pull_models
     
+    # Check if we're using local Ollama
+    local using_local_ollama=0
+    if check_ollama_running && check_local_models; then
+        using_local_ollama=1
+    fi
+    
     # Setup SSL certificates
     setup_ssl_certificates
     local ssl_available=$?
@@ -400,7 +529,7 @@ main() {
     start_application
     
     # Show final instructions
-    show_final_instructions $ssl_available
+    show_final_instructions $ssl_available $using_local_ollama
 }
 
 # Run main function
