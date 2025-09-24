@@ -91,10 +91,19 @@ export function HomePage() {
   const [permissionState, setPermissionState] = useState<'idle' | 'pending' | 'granted' | 'denied'>('idle');
   const [isSupported, setIsSupported] = useState(true);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
+  const [transcriptionMethod, setTranscriptionMethod] = useState<string>('');
   useEffect(() => {
     const transcriber = new RealTranscriber();
     if (transcriber.isSupported()) {
       transcriberRef.current = transcriber;
+      // Set the transcription method based on what's available
+      if (transcriber.hasBrowserRecognition()) {
+        setTranscriptionMethod('Browser Speech Recognition');
+        console.log('✅ Browser speech recognition available');
+      } else {
+        setTranscriptionMethod('Server-side Whisper');
+        console.log('🔄 Using server-side transcription');
+      }
     } else {
       setIsSupported(false);
       toast.error("Speech recognition is not supported in your browser.");
@@ -136,6 +145,10 @@ export function HomePage() {
         setPermissionState('granted');
         startRecording();
         await transcriberRef.current?.start(setTranscript);
+        // Update transcription method after starting
+        if (transcriberRef.current) {
+          setTranscriptionMethod(transcriberRef.current.getTranscriptionMethod());
+        }
       } catch (err) {
         setPermissionState('denied');
         toast.error('Microphone access denied. Please allow access to record.');
@@ -155,6 +168,12 @@ export function HomePage() {
         <div className="inline-flex items-center gap-2.5 rounded-full bg-blue-100 px-4 py-1.5 text-sm font-semibold text-blue-700"><BrainCircuit className="h-5 w-5" /><span>Powered by Local AI</span></div>
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-slate-900">MeetingScribe AI</h1>
         <p className="text-lg md:text-xl text-slate-600 max-w-2xl">Focus on the conversation. We'll handle the notes. Record, transcribe, and get intelligent summaries in seconds.</p>
+        {transcriptionMethod && (
+          <div className="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+            <Mic className="h-3 w-3" />
+            <span>Using {transcriptionMethod}</span>
+          </div>
+        )}
       </motion.div>
       <RecordingButton state={effectiveButtonState} onClick={handleRecordingToggle} />
       <AnimatePresence>
