@@ -2,6 +2,8 @@
 
 MeetingScribe AI is a visually stunning, minimalist web application designed to streamline meeting documentation. It leverages the browser's microphone to capture audio, transcribes it using local Whisper AI, and then uses a local LLM (via Ollama) to generate a concise, structured summary. The summary includes key discussion points, action items, and decisions made. The entire experience is contained within a single, elegant interface, focusing on simplicity and efficiency.
 
+> **🚀 Want to get started quickly?** Check out our [Quick Start Guide](QUICK_START.md) for the fastest way to get up and running!
+
 ## Key Features
 
 -   **🎤 In-Browser Audio Recording:** Capture meeting audio directly from your browser with a single click.
@@ -24,13 +26,21 @@ MeetingScribe AI is a visually stunning, minimalist web application designed to 
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
+**For the automated setup script (`./setup.sh`):**
+- A modern web browser with microphone support
+- Internet connection (for downloading dependencies and AI models)
+- Administrator/sudo access (for installing Node.js and Ollama if needed)
 
--   [Node.js](https://nodejs.org/) (v18 or higher)
--   [Ollama](https://ollama.ai/) for local AI models
--   A modern web browser with microphone support
+**For manual setup:**
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [Ollama](https://ollama.ai/) for local AI models
+- A modern web browser with microphone support
 
-## Quick Start
+> **💡 Tip:** The automated setup script will install Node.js and Ollama for you if they're not already installed!
+
+## 🚀 Quick Start (One-Command Setup)
+
+**The easiest way to get started is with our all-in-one setup script:**
 
 1.  **Clone the repository:**
     ```bash
@@ -38,33 +48,56 @@ Before you begin, ensure you have the following installed:
     cd meetingscribe-ai
     ```
 
-2.  **Install dependencies:**
+2.  **Run the setup script:**
+    
+    **Linux/macOS:**
     ```bash
-    npm install
-    ```
-
-3.  **Set up local AI services:**
-    ```bash
-    ./setup-local-ai.sh
+    ./setup.sh
     ```
     
-    This script will:
-    - Check if Ollama is installed
-    - Start the Ollama service
-    - Download the Whisper model for transcription
-    - Download the Llama 3.2 model for summarization
-
-4.  **Start the application:**
-    ```bash
-    npm run dev
+    **Windows:**
+    ```cmd
+    setup.bat
     ```
+    
+    This single command will:
+    - ✅ Check and install Node.js (if needed)
+    - ✅ Install all npm dependencies
+    - ✅ Check and install Ollama (if needed)
+    - ✅ Start the Ollama service
+    - ✅ Download Whisper model for transcription
+    - ✅ Download Llama 3.2 model for summarization
+    - ✅ Optionally start the application automatically
 
-5.  **Open your browser:**
+3.  **Open your browser:**
     Navigate to [http://localhost:3000](http://localhost:3000)
 
-## Manual Setup
+**That's it! The setup script handles everything automatically. 🎉**
 
-If you prefer to set up the AI services manually:
+### 🛠️ Setup Script Features
+
+The `./setup.sh` script is designed to make getting started as easy as possible:
+
+- **🔍 Smart Detection:** Automatically detects your operating system and existing installations
+- **📦 Auto-Installation:** Installs Node.js and Ollama if they're missing
+- **⚡ Dependency Management:** Installs all npm dependencies automatically
+- **🤖 AI Model Setup:** Downloads and configures Whisper and Llama models
+- **🚀 One-Click Start:** Optionally starts the application immediately after setup
+- **🎨 Beautiful Output:** Color-coded progress indicators and clear status messages
+- **🛡️ Error Handling:** Graceful error handling with helpful troubleshooting tips
+- **🔄 Cross-Platform:** Works on macOS, Ubuntu/Debian, CentOS/RHEL, and Fedora
+
+### 📋 What the Setup Script Does
+
+1. **Node.js Check:** Verifies Node.js 18+ is installed, offers to install if missing
+2. **Dependencies:** Runs `npm install` to get all required packages
+3. **Ollama Setup:** Checks for Ollama, installs if needed, starts the service
+4. **AI Models:** Downloads Whisper (transcription) and Llama 3.2:3b (summarization)
+5. **Ready to Go:** Optionally starts the application and opens it in your browser
+
+## Manual Setup (Alternative)
+
+If you prefer to set up everything manually or the automated script doesn't work for your system:
 
 1.  **Install Ollama:**
     Visit [https://ollama.ai/download](https://ollama.ai/download) and follow the installation instructions.
