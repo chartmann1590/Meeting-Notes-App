@@ -135,7 +135,7 @@ export function HomePage() {
         setMediaStream(stream);
         setPermissionState('granted');
         startRecording();
-        transcriberRef.current?.start(setTranscript);
+        await transcriberRef.current?.start(setTranscript);
       } catch (err) {
         setPermissionState('denied');
         toast.error('Microphone access denied. Please allow access to record.');
@@ -152,7 +152,7 @@ export function HomePage() {
   return (
     <div className="flex flex-col items-center text-center space-y-12">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="space-y-4">
-        <div className="inline-flex items-center gap-2.5 rounded-full bg-blue-100 px-4 py-1.5 text-sm font-semibold text-blue-700"><BrainCircuit className="h-5 w-5" /><span>Powered by Cloudflare AI</span></div>
+        <div className="inline-flex items-center gap-2.5 rounded-full bg-blue-100 px-4 py-1.5 text-sm font-semibold text-blue-700"><BrainCircuit className="h-5 w-5" /><span>Powered by Local AI</span></div>
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-slate-900">MeetingScribe AI</h1>
         <p className="text-lg md:text-xl text-slate-600 max-w-2xl">Focus on the conversation. We'll handle the notes. Record, transcribe, and get intelligent summaries in seconds.</p>
       </motion.div>

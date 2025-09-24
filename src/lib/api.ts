@@ -1,4 +1,17 @@
-import type { MeetingRecord, Summary } from 'worker/types';
+export interface MeetingRecord {
+  id: string;
+  createdAt: number;
+  transcript: string;
+  summary: Summary;
+}
+
+export interface Summary {
+  summary: string;
+  keyPoints: string[];
+  actionItems: string[];
+  decisions: string[];
+}
+
 export async function getMeetings(): Promise<MeetingRecord[]> {
   const response = await fetch('/api/meetings');
   if (!response.ok) {
@@ -10,6 +23,7 @@ export async function getMeetings(): Promise<MeetingRecord[]> {
   }
   return result.data;
 }
+
 export async function saveMeeting(meeting: { transcript: string; summary: Summary }): Promise<void> {
   const response = await fetch('/api/meetings', {
     method: 'POST',

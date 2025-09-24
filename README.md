@@ -1,17 +1,15 @@
 # MeetingScribe AI
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/chartmann1590/Meeting-Notes-App)
-
-MeetingScribe AI is a visually stunning, minimalist web application designed to streamline meeting documentation. It leverages the browser's microphone to capture audio, provides a real-time (simulated) transcription, and then uses a powerful LLM via Cloudflare Workers to generate a concise, structured summary. The summary includes key discussion points, action items, and decisions made. The entire experience is contained within a single, elegant interface, focusing on simplicity and efficiency.
+MeetingScribe AI is a visually stunning, minimalist web application designed to streamline meeting documentation. It leverages the browser's microphone to capture audio, transcribes it using local Whisper AI, and then uses a local LLM (via Ollama) to generate a concise, structured summary. The summary includes key discussion points, action items, and decisions made. The entire experience is contained within a single, elegant interface, focusing on simplicity and efficiency.
 
 ## Key Features
 
 -   **🎤 In-Browser Audio Recording:** Capture meeting audio directly from your browser with a single click.
--   **✍️ Real-Time Transcription:** See a live (simulated) transcript of your meeting as it happens.
--   **🤖 AI-Powered Summarization:** Automatically generate structured summaries including key points, action items, and decisions using a powerful LLM on Cloudflare Workers.
+-   **✍️ Local AI Transcription:** Uses Whisper AI running locally via Ollama for accurate transcription.
+-   **🤖 Local AI Summarization:** Automatically generate structured summaries using local LLM models via Ollama.
 -   **✨ Minimalist & Elegant UI:** A clean, uncluttered, and visually appealing interface that is a joy to use.
 -   **📋 One-Click Copy:** Easily copy the full transcript or the AI-generated summary to your clipboard.
--   **🚀 Built on Cloudflare:** Leverages the power and speed of Cloudflare Workers for backend processing.
+-   **🔒 Privacy-First:** All processing happens locally - no data leaves your machine.
 
 ## Technology Stack
 
@@ -21,18 +19,18 @@ MeetingScribe AI is a visually stunning, minimalist web application designed to 
 -   **Animation & Interactions:** Framer Motion
 -   **Icons:** Lucide React
 -   **Notifications:** Sonner
--   **Backend & AI:** Cloudflare Workers
+-   **Backend:** Express.js
+-   **AI Services:** Ollama (Whisper + LLM models)
 
-## Getting Started
+## Prerequisites
 
-Follow these instructions to get a local copy up and running for development and testing purposes.
+Before you begin, ensure you have the following installed:
 
-### Prerequisites
+-   [Node.js](https://nodejs.org/) (v18 or higher)
+-   [Ollama](https://ollama.ai/) for local AI models
+-   A modern web browser with microphone support
 
--   [Bun](https://bun.sh/) installed on your machine.
--   A [Cloudflare account](https://dash.cloudflare.com/sign-up).
-
-### Installation
+## Quick Start
 
 1.  **Clone the repository:**
     ```bash
@@ -42,68 +40,165 @@ Follow these instructions to get a local copy up and running for development and
 
 2.  **Install dependencies:**
     ```bash
-    bun install
+    npm install
     ```
 
-3.  **Configure Cloudflare Workers:**
-    You need to set up your Cloudflare AI Gateway credentials. Create a `.dev.vars` file in the root of the project for local development:
+3.  **Set up local AI services:**
+    ```bash
+    ./setup-local-ai.sh
+    ```
+    
+    This script will:
+    - Check if Ollama is installed
+    - Start the Ollama service
+    - Download the Whisper model for transcription
+    - Download the Llama 3.2 model for summarization
 
-    ```ini
-    # .dev.vars
-    CF_AI_BASE_URL="https://gateway.ai.cloudflare.com/v1/YOUR_ACCOUNT_ID/YOUR_GATEWAY_ID/openai"
-    CF_AI_API_KEY="YOUR_CLOUDFLARE_API_KEY"
+4.  **Start the application:**
+    ```bash
+    npm run dev
     ```
 
-    Replace the placeholder values with your actual Cloudflare Account ID, Gateway ID, and an API Key.
+5.  **Open your browser:**
+    Navigate to [http://localhost:3000](http://localhost:3000)
 
-## Development
+## Manual Setup
 
-To start the local development server, run the following command. This will start the Vite frontend and the Wrangler dev server for the worker.
+If you prefer to set up the AI services manually:
 
-```bash
-bun dev
-```
+1.  **Install Ollama:**
+    Visit [https://ollama.ai/download](https://ollama.ai/download) and follow the installation instructions.
 
-Open [http://localhost:3000](http://localhost:3000) to view the application in your browser. The page will auto-update as you edit the files.
+2.  **Start Ollama service:**
+    ```bash
+    ollama serve
+    ```
+
+3.  **Download required models:**
+    ```bash
+    # For transcription
+    ollama pull whisper
+    
+    # For summarization (choose one)
+    ollama pull llama3.2:3b    # Fast, good quality
+    ollama pull llama3.2:1b    # Very fast, basic quality
+    ollama pull llama3.1:8b    # Slower, higher quality
+    ```
+
+4.  **Start the application:**
+    ```bash
+    npm run dev
+    ```
 
 ## Usage
 
 1.  Open the application in your browser.
 2.  Click the **Start Recording** button.
 3.  Your browser will prompt you for microphone access. Click **Allow**.
-4.  The button will turn red, indicating that recording has started. A live transcript will appear.
-5.  When your meeting is finished, click the **Stop Recording** button.
-6.  The button will show a spinner while the transcript is being summarized.
-7.  The AI-generated summary, key points, and action items will appear in the "AI Summary" card.
-8.  Use the copy buttons to save the transcript or summary to your clipboard.
+4.  The button will turn red, indicating that recording has started.
+5.  Speak clearly into your microphone.
+6.  When your meeting is finished, click the **Stop Recording** button.
+7.  The app will transcribe your audio using Whisper and then generate a summary using the LLM.
+8.  The AI-generated summary, key points, and action items will appear in the "AI Summary" card.
+9.  Use the copy buttons to save the transcript or summary to your clipboard.
 
-## Deployment
+## Configuration
 
-This project is designed for easy deployment to Cloudflare Pages.
+You can customize the AI models by setting environment variables:
 
-### One-Click Deploy
+```bash
+# Whisper model for transcription
+export WHISPER_MODEL=whisper
 
-You can deploy this application to your own Cloudflare account with a single click.
+# LLM model for summarization
+export OLLAMA_MODEL=llama3.2:3b
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/chartmann1590/Meeting-Notes-App)
+# Ollama API URL (default: http://localhost:11434)
+export OLLAMA_API_URL=http://localhost:11434/api/generate
+```
 
-### Manual Deployment via CLI
+## Development
 
-1.  **Build the project:**
-    ```bash
-    bun run build
-    ```
+The application consists of two parts:
 
-2.  **Deploy to Cloudflare:**
-    Log in to Cloudflare with Wrangler, then run the deploy command.
+-   **Frontend:** React app running on port 3000
+-   **Backend:** Express.js server running on port 3001
 
-    ```bash
-    bun wrangler login
-    bun run deploy
-    ```
+### Development Commands
 
-    This command will build the application and deploy it to Cloudflare Pages, including the backend Worker functions.
+```bash
+# Start both frontend and backend
+npm run dev
+
+# Start only frontend
+npm run dev:frontend
+
+# Start only backend
+npm run dev:backend
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
+```
+
+### Project Structure
+
+```
+├── src/                    # Frontend React application
+│   ├── components/         # React components
+│   ├── hooks/             # Custom React hooks
+│   ├── lib/               # Utility functions
+│   └── pages/             # Page components
+├── server/                # Backend Express.js server
+│   ├── services/          # AI service integrations
+│   └── index.ts           # Main server file
+└── public/                # Static assets
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1.  **"Ollama API not available" error:**
+    - Make sure Ollama is running: `ollama serve`
+    - Check if the models are downloaded: `ollama list`
+
+2.  **Microphone access denied:**
+    - Check your browser's microphone permissions
+    - Make sure you're using HTTPS in production
+
+3.  **Transcription is slow:**
+    - The first transcription might be slow as models load
+    - Consider using a smaller/faster model like `llama3.2:1b`
+
+4.  **Poor transcription quality:**
+    - Speak clearly and reduce background noise
+    - Make sure your microphone is working properly
+
+### Performance Tips
+
+-   Use `llama3.2:1b` for faster summarization
+-   Use `llama3.2:3b` for better quality
+-   Use `llama3.1:8b` for highest quality (requires more RAM)
+
+## Contributing
+
+1.  Fork the repository
+2.  Create a feature branch: `git checkout -b feature-name`
+3.  Make your changes
+4.  Commit your changes: `git commit -m 'Add some feature'`
+5.  Push to the branch: `git push origin feature-name`
+6.  Submit a pull request
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+-   [Ollama](https://ollama.ai/) for providing easy local AI model management
+-   [Whisper](https://openai.com/research/whisper) for speech recognition
+-   [Meta's Llama](https://ai.meta.com/llama/) for language models
+-   [shadcn/ui](https://ui.shadcn.com/) for beautiful UI components

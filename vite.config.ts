@@ -2,11 +2,9 @@ import { defineConfig } from 'vite'
 import path from "path"
 import react from '@vitejs/plugin-react'
 
-import { cloudflare } from "@cloudflare/vite-plugin";
-
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), cloudflare()],
+  plugins: [react()],
   build: {
     minify: true,
     sourcemap: 'inline', // Use inline source maps for better error reporting
@@ -22,18 +20,23 @@ export default defineConfig({
   },
   server: {
     allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@shared": path.resolve(__dirname, "./shared"),
     },
   },
   optimizeDeps: {
     // This is still crucial for reducing the time from when `bun run dev`
     // is executed to when the server is actually ready.
     include: ['react', 'react-dom', 'react-router-dom'],
-    exclude: ['agents'], // Exclude agents package from pre-bundling due to Node.js dependencies
     force: true,
   },
   define: {
