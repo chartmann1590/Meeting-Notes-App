@@ -111,7 +111,44 @@ if %errorlevel% equ 0 (
     echo [SUCCESS] Llama 3.2 model downloaded
 )
 
+REM SSL Certificate Setup
+echo.
+echo ========================================
+echo   SSL Certificate Setup
+echo ========================================
+echo.
+echo [WARNING] Web browsers require HTTPS to access microphone permissions.
+echo [WARNING] Without HTTPS, you won't be able to use the microphone feature.
+echo.
+echo [INFO] Options:
+echo [INFO]   1. Generate self-signed certificates (recommended for development)
+echo [INFO]   2. Skip SSL setup (microphone won't work in browsers)
+echo.
+
+set /p SSL_SETUP="Would you like to generate self-signed SSL certificates? (y/n): "
+if /i "%SSL_SETUP%"=="y" (
+    echo.
+    echo [INFO] Generating SSL certificates...
+    if exist "scripts\generate-ssl-certs.bat" (
+        call scripts\generate-ssl-certs.bat ssl-certs localhost
+        if %errorlevel% equ 0 (
+            echo [SUCCESS] SSL certificates generated successfully!
+            set SSL_AVAILABLE=true
+        ) else (
+            echo [ERROR] Failed to generate SSL certificates
+            set SSL_AVAILABLE=false
+        )
+    ) else (
+        echo [ERROR] SSL certificate generation script not found
+        set SSL_AVAILABLE=false
+    )
+) else (
+    echo [WARNING] Skipping SSL setup. Microphone access will not work in browsers.
+    set SSL_AVAILABLE=false
+)
+
 REM Build and start the application
+echo.
 echo [INFO] Building and starting the application...
 docker-compose up -d --build
 if %errorlevel% neq 0 (
@@ -124,9 +161,18 @@ echo.
 echo [SUCCESS] ^🎉 MeetingScribe AI is now running in Docker!
 echo.
 echo Access your application:
-echo   • Frontend: http://localhost:3000
-echo   • Backend API: http://localhost:3001
-echo   • Ollama API: http://localhost:11434
+if "%SSL_AVAILABLE%"=="true" (
+    echo   • Frontend (HTTPS): https://localhost:3000
+    echo   • Backend (HTTPS):  https://localhost:3443
+    echo   • Backend (HTTP):   http://localhost:3001
+    echo   • Ollama API:       http://localhost:11434
+    echo   • 🎤 Microphone access enabled via HTTPS
+) else (
+    echo   • Frontend: http://localhost:3000
+    echo   • Backend API: http://localhost:3001
+    echo   • Ollama API: http://localhost:11434
+    echo   • ⚠️  Microphone access requires HTTPS
+)
 echo.
 echo Useful commands:
 echo   • View logs: docker-compose logs -f

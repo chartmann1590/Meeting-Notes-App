@@ -121,6 +121,42 @@ echo.
 echo [INFO] Currently installed models:
 ollama list
 
+REM SSL Certificate Setup
+echo.
+echo ========================================
+echo   SSL Certificate Setup
+echo ========================================
+echo.
+echo [WARNING] Web browsers require HTTPS to access microphone permissions.
+echo [WARNING] Without HTTPS, you won't be able to use the microphone feature.
+echo.
+echo [INFO] Options:
+echo [INFO]   1. Generate self-signed certificates (recommended for development)
+echo [INFO]   2. Skip SSL setup (microphone won't work in browsers)
+echo.
+
+set /p SSL_SETUP="Would you like to generate self-signed SSL certificates? (y/n): "
+if /i "%SSL_SETUP%"=="y" (
+    echo.
+    echo [INFO] Generating SSL certificates...
+    if exist "scripts\generate-ssl-certs.bat" (
+        call scripts\generate-ssl-certs.bat ssl-certs localhost
+        if %errorlevel% equ 0 (
+            echo [SUCCESS] SSL certificates generated successfully!
+            set SSL_AVAILABLE=true
+        ) else (
+            echo [ERROR] Failed to generate SSL certificates
+            set SSL_AVAILABLE=false
+        )
+    ) else (
+        echo [ERROR] SSL certificate generation script not found
+        set SSL_AVAILABLE=false
+    )
+) else (
+    echo [WARNING] Skipping SSL setup. Microphone access will not work in browsers.
+    set SSL_AVAILABLE=false
+)
+
 echo.
 echo ========================================
 echo   Setup Complete!
@@ -136,9 +172,18 @@ set /p START_APP="Would you like to start the application now? (y/n): "
 if /i "%START_APP%"=="y" (
     echo.
     echo [INFO] Starting MeetingScribe AI...
-    echo [SUCCESS] Application will be available at:
-    echo [SUCCESS]   Frontend: http://localhost:3000
-    echo [SUCCESS]   Backend:  http://localhost:3001
+    if "%SSL_AVAILABLE%"=="true" (
+        echo [SUCCESS] Application will be available at:
+        echo [SUCCESS]   Frontend (HTTPS): https://localhost:3000
+        echo [SUCCESS]   Backend (HTTPS):  https://localhost:3443
+        echo [SUCCESS]   Backend (HTTP):   http://localhost:3001
+        echo [SUCCESS]   🎤 Microphone access enabled via HTTPS
+    ) else (
+        echo [SUCCESS] Application will be available at:
+        echo [SUCCESS]   Frontend: http://localhost:3000
+        echo [SUCCESS]   Backend:  http://localhost:3001
+        echo [WARNING]   ⚠️  Microphone access requires HTTPS
+    )
     echo.
     echo [INFO] Press Ctrl+C to stop the application
     echo.

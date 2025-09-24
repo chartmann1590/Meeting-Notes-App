@@ -134,6 +134,49 @@ pull_models() {
     fi
 }
 
+# Function to setup SSL certificates for Docker
+setup_ssl_certificates() {
+    print_status "🔒 SSL Certificate Setup"
+    print_status "========================"
+    echo ""
+    print_warning "Web browsers require HTTPS to access microphone permissions."
+    print_warning "Without HTTPS, you won't be able to use the microphone feature."
+    echo ""
+    print_status "Options:"
+    print_status "  1. Generate self-signed certificates (recommended for development)"
+    print_status "  2. Skip SSL setup (microphone won't work in browsers)"
+    echo ""
+    
+    while true; do
+        read -p "Would you like to generate self-signed SSL certificates? (y/n): " -n 1 -r
+        echo ""
+        case $REPLY in
+            [Yy]* ) 
+                print_status "Generating SSL certificates..."
+                if [ -f "./scripts/generate-ssl-certs.sh" ]; then
+                    chmod +x ./scripts/generate-ssl-certs.sh
+                    ./scripts/generate-ssl-certs.sh ./ssl-certs localhost
+                    if [ $? -eq 0 ]; then
+                        print_success "SSL certificates generated successfully!"
+                        return 0
+                    else
+                        print_error "Failed to generate SSL certificates"
+                        return 1
+                    fi
+                else
+                    print_error "SSL certificate generation script not found"
+                    return 1
+                fi
+                ;;
+            [Nn]* ) 
+                print_warning "Skipping SSL setup. Microphone access will not work in browsers."
+                return 1
+                ;;
+            * ) print_warning "Please answer yes (y) or no (n).";;
+        esac
+    done
+}
+
 # Function to build and start the application
 start_application() {
     print_status "Building and starting the application..."
@@ -146,13 +189,24 @@ start_application() {
 
 # Function to show final instructions
 show_final_instructions() {
+    local ssl_available=${1:-1}
+    
     echo
     print_success "🎉 MeetingScribe AI is now running in Docker!"
     echo
     echo -e "${CYAN}Access your application:${NC}"
-    echo "  • Frontend: http://localhost:3000"
-    echo "  • Backend API: http://localhost:3001"
-    echo "  • Ollama API: http://localhost:11434"
+    if [ $ssl_available -eq 0 ]; then
+        echo "  • Frontend (HTTPS): https://localhost:3000"
+        echo "  • Backend (HTTPS):  https://localhost:3443"
+        echo "  • Backend (HTTP):   http://localhost:3001"
+        echo "  • Ollama API:       http://localhost:11434"
+        echo "  • 🎤 Microphone access enabled via HTTPS"
+    else
+        echo "  • Frontend: http://localhost:3000"
+        echo "  • Backend API: http://localhost:3001"
+        echo "  • Ollama API: http://localhost:11434"
+        echo "  • ⚠️  Microphone access requires HTTPS"
+    fi
     echo
     echo -e "${CYAN}Useful commands:${NC}"
     echo "  • View logs: docker-compose logs -f"
@@ -190,11 +244,15 @@ main() {
     # Pull AI models
     pull_models
     
+    # Setup SSL certificates
+    setup_ssl_certificates
+    local ssl_available=$?
+    
     # Start the application
     start_application
     
     # Show final instructions
-    show_final_instructions
+    show_final_instructions $ssl_available
 }
 
 # Run main function

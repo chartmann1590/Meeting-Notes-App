@@ -29,3 +29,9 @@ dist-ssr
 .env.*
 
 data/
+
+# SSL certificates (self-signed, should not be committed)
+ssl-certs/
+*.crt
+*.key
+*.pem

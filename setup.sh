@@ -188,9 +188,58 @@ pull_models() {
     fi
 }
 
+# Function to setup SSL certificates
+setup_ssl_certificates() {
+    print_status "🔒 SSL Certificate Setup"
+    print_status "========================"
+    echo ""
+    print_warning "Web browsers require HTTPS to access microphone permissions."
+    print_warning "Without HTTPS, you won't be able to use the microphone feature."
+    echo ""
+    print_status "Options:"
+    print_status "  1. Generate self-signed certificates (recommended for development)"
+    print_status "  2. Skip SSL setup (microphone won't work in browsers)"
+    echo ""
+    
+    while true; do
+        read -p "Would you like to generate self-signed SSL certificates? (y/n): " -n 1 -r
+        echo ""
+        case $REPLY in
+            [Yy]* ) 
+                print_status "Generating SSL certificates..."
+                if [ -f "./scripts/generate-ssl-certs.sh" ]; then
+                    chmod +x ./scripts/generate-ssl-certs.sh
+                    ./scripts/generate-ssl-certs.sh ./ssl-certs localhost
+                    if [ $? -eq 0 ]; then
+                        print_success "SSL certificates generated successfully!"
+                        return 0
+                    else
+                        print_error "Failed to generate SSL certificates"
+                        return 1
+                    fi
+                else
+                    print_error "SSL certificate generation script not found"
+                    return 1
+                fi
+                ;;
+            [Nn]* ) 
+                print_warning "Skipping SSL setup. Microphone access will not work in browsers."
+                return 1
+                ;;
+            * ) print_warning "Please answer yes (y) or no (n).";;
+        esac
+    done
+}
+
 # Function to start the application
 start_application() {
     print_status "Starting MeetingScribe AI..."
+    
+    # Check if SSL certificates exist
+    local ssl_available=false
+    if [ -f "./ssl-certs/server.crt" ] && [ -f "./ssl-certs/server.key" ]; then
+        ssl_available=true
+    fi
     
     # Check if user wants to start the app
     echo ""
@@ -199,9 +248,18 @@ start_application() {
     
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_status "Starting the application..."
-        print_success "Application will be available at:"
-        print_success "  Frontend: http://localhost:3000"
-        print_success "  Backend:  http://localhost:3001"
+        if [ "$ssl_available" = true ]; then
+            print_success "Application will be available at:"
+            print_success "  Frontend (HTTPS): https://localhost:3000"
+            print_success "  Backend (HTTPS):  https://localhost:3443"
+            print_success "  Backend (HTTP):   http://localhost:3001"
+            print_success "  🎤 Microphone access enabled via HTTPS"
+        else
+            print_success "Application will be available at:"
+            print_success "  Frontend: http://localhost:3000"
+            print_success "  Backend:  http://localhost:3001"
+            print_warning "  ⚠️  Microphone access requires HTTPS"
+        fi
         echo ""
         print_status "Press Ctrl+C to stop the application"
         echo ""
@@ -309,7 +367,11 @@ main() {
         exit 1
     fi
     
-    # Step 6: Final setup and start
+    # Step 6: Setup SSL certificates
+    print_header "🔒 Step 5: SSL Certificate Setup..."
+    setup_ssl_certificates
+    
+    # Step 7: Final setup and start
     print_header "🎉 Setup Complete!"
     echo ""
     print_success "MeetingScribe AI is ready to use!"
