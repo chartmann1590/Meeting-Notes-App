@@ -141,15 +141,65 @@ if /i "%SSL_SETUP%"=="y" (
     echo [INFO] Checking OpenSSL availability...
     openssl version >nul 2>&1
     if %errorlevel% neq 0 (
-        echo [ERROR] OpenSSL is not installed!
+        echo [WARNING] OpenSSL is not installed!
         echo.
-        echo [INFO] Please install OpenSSL:
-        echo   Download from: https://slproweb.com/products/Win32OpenSSL.html
-        echo   Or install via Chocolatey: choco install openssl
+        echo [INFO] Attempting to install OpenSSL automatically...
+        
+        REM Try to install via Chocolatey first
+        choco --version >nul 2>&1
+        if %errorlevel% equ 0 (
+            echo [INFO] Installing OpenSSL via Chocolatey...
+            choco install openssl -y
+            if %errorlevel% equ 0 (
+                echo [SUCCESS] OpenSSL installed successfully via Chocolatey
+                REM Refresh PATH
+                call refreshenv
+            ) else (
+                echo [ERROR] Failed to install OpenSSL via Chocolatey
+                goto openssl_manual_install
+            )
+        ) else (
+            REM Try to install via winget
+            winget --version >nul 2>&1
+            if %errorlevel% equ 0 (
+                echo [INFO] Installing OpenSSL via winget...
+                winget install --id ShiningLight.OpenSSL -e --accept-package-agreements --accept-source-agreements
+                if %errorlevel% equ 0 (
+                    echo [SUCCESS] OpenSSL installed successfully via winget
+                ) else (
+                    echo [ERROR] Failed to install OpenSSL via winget
+                    goto openssl_manual_install
+                )
+            ) else (
+                goto openssl_manual_install
+            )
+        )
+        
+        REM Verify installation
+        openssl version >nul 2>&1
+        if %errorlevel% neq 0 (
+            echo [ERROR] OpenSSL installation completed but not found in PATH
+            echo [INFO] You may need to restart your terminal or add OpenSSL to PATH manually
+            goto openssl_manual_install
+        )
+        
+        echo [SUCCESS] OpenSSL is now available
+        goto openssl_ready
+        
+        :openssl_manual_install
+        echo.
+        echo [ERROR] Could not install OpenSSL automatically
+        echo.
+        echo [INFO] Please install OpenSSL manually:
+        echo   • Download from: https://slproweb.com/products/Win32OpenSSL.html
+        echo   • Or install via Chocolatey: choco install openssl
+        echo   • Or install via winget: winget install ShiningLight.OpenSSL
         echo.
         echo [WARNING] Skipping SSL setup. Microphone access will not work in browsers.
         set SSL_AVAILABLE=false
         goto ssl_setup_complete
+        
+        :openssl_ready
     )
     
     echo [SUCCESS] OpenSSL is available

@@ -188,17 +188,71 @@ pull_models() {
     fi
 }
 
-# Function to check if OpenSSL is available
+# Function to install OpenSSL on different systems
+install_openssl() {
+    print_status "Installing OpenSSL..."
+    
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        if command_exists brew; then
+            brew install openssl
+        else
+            print_error "Homebrew not found. Please install OpenSSL manually:"
+            print_status "  brew install openssl"
+            return 1
+        fi
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        # Linux
+        if command_exists apt-get; then
+            # Ubuntu/Debian
+            sudo apt-get update
+            sudo apt-get install -y openssl
+        elif command_exists yum; then
+            # CentOS/RHEL
+            sudo yum install -y openssl
+        elif command_exists dnf; then
+            # Fedora
+            sudo dnf install -y openssl
+        elif command_exists pacman; then
+            # Arch Linux
+            sudo pacman -S --noconfirm openssl
+        elif command_exists zypper; then
+            # openSUSE
+            sudo zypper install -y openssl
+        else
+            print_error "Unsupported Linux distribution. Please install OpenSSL manually."
+            return 1
+        fi
+    else
+        print_error "Unsupported operating system. Please install OpenSSL manually."
+        return 1
+    fi
+}
+
+# Function to check if OpenSSL is available and install if needed
 check_openssl() {
     if ! command -v openssl >/dev/null 2>&1; then
-        print_error "OpenSSL is not installed!"
-        echo
-        print_status "Please install OpenSSL:"
-        echo "  • Ubuntu/Debian: sudo apt-get install openssl"
-        echo "  • CentOS/RHEL: sudo yum install openssl"
-        echo "  • macOS: brew install openssl"
-        echo "  • Windows: Download from https://slproweb.com/products/Win32OpenSSL.html"
-        return 1
+        print_warning "OpenSSL is not installed"
+        echo ""
+        read -p "Would you like to install OpenSSL automatically? (y/n): " -n 1 -r
+        echo ""
+        
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if install_openssl; then
+                print_success "OpenSSL installed successfully"
+                return 0
+            else
+                print_error "Failed to install OpenSSL automatically"
+                print_warning "Please install OpenSSL manually:"
+                echo "  • Ubuntu/Debian: sudo apt-get install openssl"
+                echo "  • CentOS/RHEL: sudo yum install openssl"
+                echo "  • macOS: brew install openssl"
+                return 1
+            fi
+        else
+            print_error "OpenSSL installation required for SSL certificate generation"
+            return 1
+        fi
     fi
     return 0
 }
