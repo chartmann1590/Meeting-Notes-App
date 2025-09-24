@@ -5,7 +5,7 @@ Welcome to MeetingScribe AI! This index will help you find the right documentati
 ## 📚 Documentation Overview
 
 ### Getting Started
-- **[README.md](README.md)** - Main project overview, features, and setup instructions
+- **[README.md](../README.md)** - Main project overview, features, and setup instructions
 - **[QUICK_START.md](QUICK_START.md)** - Fastest way to get up and running
 - **[DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md)** - Complete development setup and guidelines
 
@@ -20,7 +20,7 @@ Welcome to MeetingScribe AI! This index will help you find the right documentati
 ## 🚀 Quick Navigation
 
 ### For New Users
-1. Start with [README.md](README.md) for project overview
+1. Start with [README.md](../README.md) for project overview
 2. Follow [QUICK_START.md](QUICK_START.md) for setup
 3. Use the application at http://localhost:3000
 
@@ -38,14 +38,15 @@ Welcome to MeetingScribe AI! This index will help you find the right documentati
 
 ```
 ├── 📄 README.md                    # Main project documentation
-├── 📄 QUICK_START.md               # Quick setup guide
-├── 📄 DEVELOPMENT_GUIDE.md         # Development setup and guidelines
-├── 📄 API_DOCUMENTATION.md         # Backend API reference
-├── 📄 MIGRATION_SUMMARY.md         # Migration history (completed)
-├── 📄 DOCUMENTATION_INDEX.md       # This file
-├── 📁 prompts/                     # AI prompts and guidelines
-│   ├── 📄 ai-summarization.md      # AI summarization prompts
-│   └── 📄 development-guidelines.md # Development best practices
+├── 📁 docs/                        # Documentation directory
+│   ├── 📄 QUICK_START.md           # Quick setup guide
+│   ├── 📄 DEVELOPMENT_GUIDE.md     # Development setup and guidelines
+│   ├── 📄 API_DOCUMENTATION.md     # Backend API reference
+│   ├── 📄 MIGRATION_SUMMARY.md     # Migration history (completed)
+│   ├── 📄 DOCUMENTATION_INDEX.md   # This file
+│   └── 📁 prompts/                 # AI prompts and guidelines
+│       ├── 📄 ai-summarization.md  # AI summarization prompts
+│       └── 📄 development-guidelines.md # Development best practices
 ├── 📁 src/                         # Frontend React application
 ├── 📁 server/                      # Backend Express.js server
 └── 📁 setup scripts/               # Automated setup scripts
@@ -81,7 +82,7 @@ After setup, access the application at:
 ## 🆘 Getting Help
 
 ### Common Issues
-- Check the [Troubleshooting section](README.md#troubleshooting) in README.md
+- Check the [Troubleshooting section](../README.md#troubleshooting) in README.md
 - Review [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for API issues
 - See [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) for development problems
 
@@ -110,14 +111,14 @@ When making changes to the project:
 
 ## 📋 Documentation Checklist
 
-- [ ] README.md - Project overview and setup
-- [ ] QUICK_START.md - Quick setup guide
-- [ ] DEVELOPMENT_GUIDE.md - Development setup
-- [ ] API_DOCUMENTATION.md - API reference
-- [ ] MIGRATION_SUMMARY.md - Migration history
-- [ ] prompts/ai-summarization.md - AI prompts
-- [ ] prompts/development-guidelines.md - Development standards
-- [ ] DOCUMENTATION_INDEX.md - This index
+- [x] README.md - Project overview and setup
+- [x] QUICK_START.md - Quick setup guide
+- [x] DEVELOPMENT_GUIDE.md - Development setup
+- [x] API_DOCUMENTATION.md - API reference
+- [x] MIGRATION_SUMMARY.md - Migration history
+- [x] prompts/ai-summarization.md - AI prompts
+- [x] prompts/development-guidelines.md - Development standards
+- [x] DOCUMENTATION_INDEX.md - This index
 
 ---
 

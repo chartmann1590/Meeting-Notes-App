@@ -2,7 +2,7 @@
 
 MeetingScribe AI is a privacy-first, locally-powered meeting transcription and summarization application. It captures audio directly from your browser, transcribes it using Whisper AI running locally via Ollama, and generates structured summaries using local LLM models. All processing happens on your machine - no data leaves your device, ensuring complete privacy and security.
 
-> **🚀 Want to get started quickly?** Check out our [Quick Start Guide](QUICK_START.md) for the fastest way to get up and running!
+> **🚀 Want to get started quickly?** Check out our [Quick Start Guide](docs/QUICK_START.md) for the fastest way to get up and running!
 
 ## Key Features
 
@@ -295,7 +295,9 @@ npm start
 │   ├── index.ts                  # Main server file
 │   └── types.ts                  # Server type definitions
 ├── public/                       # Static assets
-├── prompts/                      # Documentation and prompts
+├── docs/                         # Documentation directory
+│   ├── prompts/                  # AI prompts and guidelines
+│   └── *.md                      # Documentation files
 └── setup scripts                 # Automated setup scripts
 ```
 
@@ -325,6 +327,23 @@ npm start
 -   Use `llama3.2:3b` for better quality
 -   Use `llama3.1:8b` for highest quality (requires more RAM)
 
+## 📚 Documentation
+
+Complete documentation is available in the [`docs/`](docs/) directory:
+
+- **[📖 Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Complete documentation overview and navigation
+- **[🚀 Quick Start Guide](docs/QUICK_START.md)** - Fastest way to get up and running
+- **[🛠️ Development Guide](docs/DEVELOPMENT_GUIDE.md)** - Complete development setup and guidelines
+- **[🔌 API Documentation](docs/API_DOCUMENTATION.md)** - Complete API reference for backend services
+- **[📋 Migration Summary](docs/MIGRATION_SUMMARY.md)** - Migration from Cloudflare to local AI (completed)
+- **[🤖 AI Prompts](docs/prompts/)** - AI summarization prompts and development guidelines
+
+### Quick Navigation
+- **New Users:** Start with [Quick Start Guide](docs/QUICK_START.md)
+- **Developers:** See [Development Guide](docs/DEVELOPMENT_GUIDE.md)
+- **API Integration:** Check [API Documentation](docs/API_DOCUMENTATION.md)
+- **Contributors:** Review [Development Guidelines](docs/prompts/development-guidelines.md)
+
 ## Contributing
 
 1.  Fork the repository
@@ -333,6 +352,8 @@ npm start
 4.  Commit your changes: `git commit -m 'Add some feature'`
 5.  Push to the branch: `git push origin feature-name`
 6.  Submit a pull request
+
+For detailed contributing guidelines, see the [Development Guide](docs/DEVELOPMENT_GUIDE.md).
 
 ## License
 

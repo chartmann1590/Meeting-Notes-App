@@ -143,4 +143,4 @@ npm run dev
 
 ## Need Help?
 
-Check the full [README.md](README.md) for detailed documentation and troubleshooting.
+Check the full [README.md](../README.md) for detailed documentation and troubleshooting.

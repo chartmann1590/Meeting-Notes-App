@@ -491,4 +491,4 @@ npm run build
 npm start
 ```
 
-For detailed deployment instructions, see the main [README](README.md).
+For detailed deployment instructions, see the main [README](../README.md).
