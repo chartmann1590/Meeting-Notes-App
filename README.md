@@ -26,29 +26,61 @@ MeetingScribe AI is a visually stunning, minimalist web application designed to 
 
 ## Prerequisites
 
-**For the automated setup script (`./setup.sh`):**
+**For Docker setup (Recommended):**
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+- A modern web browser with microphone support
+- Internet connection (for downloading Docker images and AI models)
+- 4GB+ RAM (for running AI models in containers)
+
+**For the automated local setup script (`./setup.sh`):**
 - A modern web browser with microphone support
 - Internet connection (for downloading dependencies and AI models)
 - Administrator/sudo access (for installing Node.js and Ollama if needed)
 
-**For manual setup:**
+**For manual local setup:**
 - [Node.js](https://nodejs.org/) (v18 or higher)
 - [Ollama](https://ollama.ai/) for local AI models
 - A modern web browser with microphone support
 
-> **💡 Tip:** The automated setup script will install Node.js and Ollama for you if they're not already installed!
+> **💡 Tip:** The Docker setup requires no local installations - everything runs in containers! The local setup script will install Node.js and Ollama for you if they're not already installed!
 
 ## 🚀 Quick Start (One-Command Setup)
 
-**The easiest way to get started is with our all-in-one setup script:**
+**Choose your preferred setup method:**
+
+### Option 1: Docker Setup (Recommended for Easy Deployment)
+
+**The easiest way to get started with Docker:**
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/meetingscribe-ai.git
-    cd meetingscribe-ai
+    git clone https://github.com/chartmann1590/Meeting-Notes-App.git
+    cd Meeting-Notes-App
     ```
 
-2.  **Run the setup script:**
+2.  **Run the Docker setup script:**
+    
+    **Linux/macOS:**
+    ```bash
+    ./setup-docker.sh
+    ```
+    
+    **Windows:**
+    ```cmd
+    setup-docker.bat
+    ```
+
+### Option 2: Local Setup (Direct Installation)
+
+**For running directly on your system:**
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/chartmann1590/Meeting-Notes-App.git
+    cd Meeting-Notes-App
+    ```
+
+2.  **Run the local setup script:**
     
     **Linux/macOS:**
     ```bash
@@ -75,7 +107,20 @@ MeetingScribe AI is a visually stunning, minimalist web application designed to 
 
 **That's it! The setup script handles everything automatically. 🎉**
 
-### 🛠️ Setup Script Features
+### 🐳 Docker Setup Features
+
+The Docker setup provides a complete containerized environment:
+
+- **🔧 Zero Configuration:** No need to install Node.js, Ollama, or any dependencies
+- **📦 Isolated Environment:** Everything runs in containers, keeping your system clean
+- **🚀 Quick Deployment:** Perfect for development, testing, or production deployment
+- **🔄 Easy Updates:** Simple `docker-compose pull` to update to latest versions
+- **💾 Persistent Data:** AI models and data are preserved between restarts
+- **🌐 Network Ready:** All services are properly networked and accessible
+- **📊 Health Checks:** Built-in health monitoring for all services
+- **🛡️ Security:** Non-root user execution and minimal attack surface
+
+### 🛠️ Local Setup Script Features
 
 The `./setup.sh` script is designed to make getting started as easy as possible:
 
@@ -158,9 +203,32 @@ The application consists of two parts:
 
 -   **Frontend:** React app running on port 3000
 -   **Backend:** Express.js server running on port 3001
+-   **Ollama:** AI service running on port 11434 (Docker setup only)
 
 ### Development Commands
 
+**Docker Development:**
+```bash
+# Start all services (app + Ollama)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop all services
+docker-compose down
+
+# Rebuild and restart
+docker-compose up -d --build
+
+# Access Ollama shell
+docker-compose exec ollama bash
+
+# Pull new AI models
+docker-compose exec ollama ollama pull <model-name>
+```
+
+**Local Development:**
 ```bash
 # Start both frontend and backend
 npm run dev
