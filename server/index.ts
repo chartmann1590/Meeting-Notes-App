@@ -47,12 +47,34 @@ const upload = multer({
 const meetings: MeetingRecord[] = [];
 
 // Service status check functions
-async function checkOllamaStatus(): Promise<{ connected: boolean; model?: string; error?: string }> {
+async function checkOllamaStatus(): Promise<{ 
+  connected: boolean; 
+  currentModel?: string; 
+  availableModels?: string[];
+  error?: string 
+}> {
   try {
-    const OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'http://localhost:11434/api/generate';
+    const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
     const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2:3b';
     
-    const response = await fetch(OLLAMA_API_URL, {
+    // First, try to get available models
+    let availableModels: string[] = [];
+    try {
+      const modelsResponse = await fetch(`${OLLAMA_BASE_URL}/api/tags`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (modelsResponse.ok) {
+        const modelsData = await modelsResponse.json();
+        availableModels = modelsData.models?.map((model: any) => model.name) || [];
+      }
+    } catch (modelsError) {
+      console.warn('Could not fetch available models:', modelsError);
+    }
+    
+    // Test the current model
+    const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -63,24 +85,60 @@ async function checkOllamaStatus(): Promise<{ connected: boolean; model?: string
     });
     
     if (response.ok) {
-      return { connected: true, model: OLLAMA_MODEL };
+      return { 
+        connected: true, 
+        currentModel: OLLAMA_MODEL,
+        availableModels: availableModels
+      };
     } else {
-      return { connected: false, error: `HTTP ${response.status}` };
+      return { 
+        connected: false, 
+        currentModel: OLLAMA_MODEL,
+        availableModels: availableModels,
+        error: `HTTP ${response.status}` 
+      };
     }
   } catch (error) {
     return { 
       connected: false, 
+      currentModel: process.env.OLLAMA_MODEL || 'llama3.2:3b',
+      availableModels: [],
       error: error instanceof Error ? error.message : 'Unknown error' 
     };
   }
 }
 
-async function checkWhisperStatus(): Promise<{ connected: boolean; model?: string; error?: string }> {
+async function checkWhisperStatus(): Promise<{ 
+  connected: boolean; 
+  currentModel?: string; 
+  availableModels?: string[];
+  error?: string 
+}> {
   try {
-    const WHISPER_API_URL = process.env.WHISPER_API_URL || 'http://localhost:11434/api/generate';
+    const WHISPER_BASE_URL = process.env.WHISPER_BASE_URL || 'http://localhost:11434';
     const WHISPER_MODEL = process.env.WHISPER_MODEL || 'whisper';
     
-    const response = await fetch(WHISPER_API_URL, {
+    // First, try to get available models
+    let availableModels: string[] = [];
+    try {
+      const modelsResponse = await fetch(`${WHISPER_BASE_URL}/api/tags`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (modelsResponse.ok) {
+        const modelsData = await modelsResponse.json();
+        // Filter for whisper models
+        availableModels = modelsData.models?.filter((model: any) => 
+          model.name.toLowerCase().includes('whisper')
+        ).map((model: any) => model.name) || [];
+      }
+    } catch (modelsError) {
+      console.warn('Could not fetch available whisper models:', modelsError);
+    }
+    
+    // Test the current model
+    const response = await fetch(`${WHISPER_BASE_URL}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -91,13 +149,24 @@ async function checkWhisperStatus(): Promise<{ connected: boolean; model?: strin
     });
     
     if (response.ok) {
-      return { connected: true, model: WHISPER_MODEL };
+      return { 
+        connected: true, 
+        currentModel: WHISPER_MODEL,
+        availableModels: availableModels
+      };
     } else {
-      return { connected: false, error: `HTTP ${response.status}` };
+      return { 
+        connected: false, 
+        currentModel: WHISPER_MODEL,
+        availableModels: availableModels,
+        error: `HTTP ${response.status}` 
+      };
     }
   } catch (error) {
     return { 
       connected: false, 
+      currentModel: process.env.WHISPER_MODEL || 'whisper',
+      availableModels: [],
       error: error instanceof Error ? error.message : 'Unknown error' 
     };
   }
