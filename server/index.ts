@@ -46,6 +46,63 @@ const upload = multer({
 // In-memory storage for meetings (in production, use a database)
 const meetings: MeetingRecord[] = [];
 
+// Service status check functions
+async function checkOllamaStatus(): Promise<{ connected: boolean; model?: string; error?: string }> {
+  try {
+    const OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'http://localhost:11434/api/generate';
+    const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2:3b';
+    
+    const response = await fetch(OLLAMA_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        prompt: 'test',
+        stream: false
+      })
+    });
+    
+    if (response.ok) {
+      return { connected: true, model: OLLAMA_MODEL };
+    } else {
+      return { connected: false, error: `HTTP ${response.status}` };
+    }
+  } catch (error) {
+    return { 
+      connected: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+
+async function checkWhisperStatus(): Promise<{ connected: boolean; model?: string; error?: string }> {
+  try {
+    const WHISPER_API_URL = process.env.WHISPER_API_URL || 'http://localhost:11434/api/generate';
+    const WHISPER_MODEL = process.env.WHISPER_MODEL || 'whisper';
+    
+    const response = await fetch(WHISPER_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: WHISPER_MODEL,
+        prompt: 'test',
+        stream: false
+      })
+    });
+    
+    if (response.ok) {
+      return { connected: true, model: WHISPER_MODEL };
+    } else {
+      return { connected: false, error: `HTTP ${response.status}` };
+    }
+  } catch (error) {
+    return { 
+      connected: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
@@ -57,28 +114,68 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Service status check endpoint
+app.get('/api/services/status', async (req, res) => {
+  try {
+    console.log('🔍 Checking service status...');
+    
+    // Check Ollama service
+    const ollamaStatus = await checkOllamaStatus();
+    console.log(`🤖 Ollama status: ${ollamaStatus.connected ? '✅ Connected' : '❌ Disconnected'}`);
+    
+    // Check Whisper service
+    const whisperStatus = await checkWhisperStatus();
+    console.log(`🎤 Whisper status: ${whisperStatus.connected ? '✅ Connected' : '❌ Disconnected'}`);
+    
+    res.json({
+      success: true,
+      data: {
+        ollama: ollamaStatus,
+        whisper: whisperStatus,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('❌ Service status check error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check service status'
+    });
+  }
+});
+
 // Transcribe audio endpoint
 app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
   try {
     if (!req.file) {
+      console.log('❌ No audio file provided in transcription request');
       return res.status(400).json({
         success: false,
         error: 'No audio file provided'
       });
     }
 
-    console.log('Transcribing audio file:', req.file.filename);
+    console.log(`🎵 Transcribing audio file: ${req.file.filename} (${req.file.size} bytes)`);
+    console.log(`📁 File path: ${req.file.path}`);
+    
+    const startTime = Date.now();
     const transcript = await transcribeAudio(req.file.path);
+    const processingTime = Date.now() - startTime;
+    
+    console.log(`✅ Transcription completed in ${processingTime}ms`);
+    console.log(`📝 Transcript length: ${transcript.length} characters`);
+    console.log(`📝 Transcript preview: "${transcript.substring(0, 100)}${transcript.length > 100 ? '...' : ''}"`);
     
     // Clean up uploaded file
     fs.unlinkSync(req.file.path);
+    console.log(`🗑️ Cleaned up temporary file: ${req.file.filename}`);
     
     res.json({
       success: true,
       data: { transcript }
     });
   } catch (error) {
-    console.error('Transcription error:', error);
+    console.error('❌ Transcription error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to transcribe audio'
