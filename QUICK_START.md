@@ -1,67 +1,81 @@
 # 🚀 MeetingScribe AI - Quick Start Guide
 
-## Choose Your Setup Method
+## One-Command Setup
+
+Choose your preferred setup method:
 
 ### Option 1: Docker Setup (Recommended)
+**Zero local dependencies - everything runs in containers**
 
-**For Linux/macOS:**
+**Linux/macOS:**
 ```bash
 ./setup-docker.sh
 ```
 
-**For Windows:**
+**Windows:**
 ```cmd
 setup-docker.bat
 ```
 
 ### Option 2: Local Setup
+**Direct installation on your system**
 
-**For Linux/macOS:**
+**Linux/macOS:**
 ```bash
 ./setup.sh
 ```
 
-**For Windows:**
+**Windows:**
 ```cmd
 setup.bat
 ```
 
-## What You Need
+## System Requirements
 
-### For Docker Setup:
-- **Docker and Docker Compose** (installed and running)
-- **Internet connection** (to download Docker images and AI models)
-- **4GB+ RAM** (for running AI models in containers)
-- **Microphone** (for recording meetings)
+### Docker Setup (Recommended)
+- **Docker & Docker Compose** - [Install Docker](https://docs.docker.com/get-docker/)
+- **4GB+ RAM** - For running AI models in containers
+- **Internet connection** - To download Docker images and AI models
+- **Microphone** - For recording meetings
 
-### For Local Setup:
-- **Internet connection** (to download dependencies and AI models)
-- **Administrator/sudo access** (to install Node.js and Ollama if needed)
-- **Microphone** (for recording meetings)
+### Local Setup
+- **Internet connection** - To download dependencies and AI models
+- **Administrator/sudo access** - To install Node.js and Ollama if needed
+- **Microphone** - For recording meetings
 
-## What the Setup Does
+## What Happens During Setup
 
-### Docker Setup:
-1. ✅ **Checks Docker** - Verifies Docker and Docker Compose are installed and running
-2. ✅ **Starts Ollama** - Launches Ollama service in a container
-3. ✅ **Checks existing models** - Skips download if Whisper/Llama are already installed
-4. ✅ **Downloads AI models** - Only downloads what's missing (saves time & bandwidth)
-5. ✅ **Builds application** - Creates the app container with all dependencies
-6. ✅ **Starts all services** - Launches the complete application stack
+### Docker Setup
+1. ✅ **Verifies Docker** - Checks Docker and Docker Compose installation
+2. ✅ **Launches Ollama** - Starts AI service in container
+3. ✅ **Smart Model Download** - Only downloads missing AI models (Whisper + Llama 3.2)
+4. ✅ **Builds Application** - Creates app container with all dependencies
+5. ✅ **Starts Services** - Launches complete application stack
 
-### Local Setup:
-1. ✅ **Checks Node.js** - Installs if missing (requires v18+)
-2. ✅ **Installs dependencies** - Downloads all npm packages
-3. ✅ **Sets up Ollama** - Installs and starts the AI service (if not already running)
-4. ✅ **Checks existing models** - Skips download if Whisper/Llama are already installed
-5. ✅ **Downloads AI models** - Only downloads what's missing (saves time & bandwidth)
-6. ✅ **Starts the app** - Optionally launches the application
+### Local Setup
+1. ✅ **Node.js Check** - Installs Node.js 18+ if missing
+2. ✅ **Dependencies** - Installs all npm packages
+3. ✅ **Ollama Setup** - Installs and starts AI service
+4. ✅ **Smart Model Download** - Only downloads missing AI models
+5. ✅ **Ready to Go** - Optionally starts the application
 
-## After Setup
+## Access Your Application
 
-- **Frontend:** http://localhost:3000
-- **Backend:** http://localhost:3001
+After successful setup, access the application at:
+
+- **Main Application:** http://localhost:3000
+- **Backend API:** http://localhost:3001
 - **Ollama API:** http://localhost:11434 (Docker setup only)
+
+## Using MeetingScribe AI
+
+1. **Open the app** in your browser at http://localhost:3000
+2. **Click "Start Recording"** to begin capturing audio
+3. **Allow microphone access** when prompted by your browser
+4. **Speak clearly** during your meeting
+5. **Click "Stop Recording"** when finished
+6. **Wait for processing** - AI will transcribe and summarize your meeting
+7. **Copy results** using the copy buttons for transcript or summary
 
 ## Troubleshooting
 

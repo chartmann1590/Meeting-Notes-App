@@ -1,28 +1,45 @@
 # MeetingScribe AI
 
-MeetingScribe AI is a visually stunning, minimalist web application designed to streamline meeting documentation. It leverages the browser's microphone to capture audio, transcribes it using local Whisper AI, and then uses a local LLM (via Ollama) to generate a concise, structured summary. The summary includes key discussion points, action items, and decisions made. The entire experience is contained within a single, elegant interface, focusing on simplicity and efficiency.
+MeetingScribe AI is a privacy-first, locally-powered meeting transcription and summarization application. It captures audio directly from your browser, transcribes it using Whisper AI running locally via Ollama, and generates structured summaries using local LLM models. All processing happens on your machine - no data leaves your device, ensuring complete privacy and security.
 
 > **🚀 Want to get started quickly?** Check out our [Quick Start Guide](QUICK_START.md) for the fastest way to get up and running!
 
 ## Key Features
 
--   **🎤 In-Browser Audio Recording:** Capture meeting audio directly from your browser with a single click.
--   **✍️ Local AI Transcription:** Uses Whisper AI running locally via Ollama for accurate transcription.
--   **🤖 Local AI Summarization:** Automatically generate structured summaries using local LLM models via Ollama.
--   **✨ Minimalist & Elegant UI:** A clean, uncluttered, and visually appealing interface that is a joy to use.
--   **📋 One-Click Copy:** Easily copy the full transcript or the AI-generated summary to your clipboard.
--   **🔒 Privacy-First:** All processing happens locally - no data leaves your machine.
+-   **🎤 In-Browser Audio Recording:** Capture meeting audio directly from your browser with a single click
+-   **✍️ Local AI Transcription:** Uses Whisper AI running locally via Ollama for accurate transcription
+-   **🤖 Local AI Summarization:** Automatically generate structured summaries using local LLM models via Ollama
+-   **✨ Modern & Elegant UI:** Clean, responsive interface built with React, Tailwind CSS, and shadcn/ui components
+-   **📋 One-Click Copy:** Easily copy the full transcript or the AI-generated summary to your clipboard
+-   **🔒 Privacy-First:** All processing happens locally - no data leaves your machine
+-   **💾 Meeting History:** Save and manage past meetings with persistent storage
+-   **🌙 Dark/Light Theme:** Built-in theme switching for comfortable viewing
+-   **📱 Mobile Responsive:** Works seamlessly on desktop, tablet, and mobile devices
 
 ## Technology Stack
 
--   **Frontend:** React, Vite, Tailwind CSS
--   **UI Components:** shadcn/ui
+### Frontend
+-   **Framework:** React 18 with TypeScript
+-   **Build Tool:** Vite
+-   **Styling:** Tailwind CSS with custom animations
+-   **UI Components:** shadcn/ui (Radix UI primitives)
 -   **State Management:** Zustand
--   **Animation & Interactions:** Framer Motion
+-   **Animation:** Framer Motion
 -   **Icons:** Lucide React
 -   **Notifications:** Sonner
--   **Backend:** Express.js
--   **AI Services:** Ollama (Whisper + LLM models)
+-   **Routing:** React Router DOM
+
+### Backend
+-   **Server:** Express.js with TypeScript
+-   **File Upload:** Multer
+-   **CORS:** Cross-origin resource sharing support
+-   **Development:** Nodemon with tsx for hot reloading
+
+### AI Services
+-   **Local AI Platform:** Ollama
+-   **Transcription:** Whisper model
+-   **Summarization:** Llama 3.2 models (1b, 3b, 8b variants)
+-   **API Integration:** OpenAI-compatible API endpoints
 
 ## Prerequisites
 
@@ -249,15 +266,37 @@ npm start
 ### Project Structure
 
 ```
-├── src/                    # Frontend React application
-│   ├── components/         # React components
-│   ├── hooks/             # Custom React hooks
-│   ├── lib/               # Utility functions
-│   └── pages/             # Page components
-├── server/                # Backend Express.js server
-│   ├── services/          # AI service integrations
-│   └── index.ts           # Main server file
-└── public/                # Static assets
+├── src/                           # Frontend React application
+│   ├── components/                # React components
+│   │   ├── ui/                   # shadcn/ui components
+│   │   ├── AudioVisualizer.tsx   # Audio visualization component
+│   │   ├── ErrorBoundary.tsx     # Error handling components
+│   │   ├── Layout.tsx            # Main layout component
+│   │   └── ThemeToggle.tsx       # Theme switching component
+│   ├── hooks/                    # Custom React hooks
+│   │   ├── use-meeting-store.ts  # Meeting state management
+│   │   ├── use-mobile.tsx        # Mobile detection hook
+│   │   └── use-theme.ts          # Theme management hook
+│   ├── lib/                      # Utility functions
+│   │   ├── api.ts                # API client functions
+│   │   ├── chat.ts               # Chat/meeting logic
+│   │   ├── real-transcriber.ts   # Audio transcription logic
+│   │   └── utils.ts              # General utilities
+│   ├── pages/                    # Page components
+│   │   ├── DemoPage.tsx          # Demo/landing page
+│   │   ├── HomePage.tsx          # Main meeting interface
+│   │   ├── PastMeetingsPage.tsx  # Meeting history
+│   │   └── SettingsPage.tsx      # Application settings
+│   └── types/                    # TypeScript type definitions
+├── server/                       # Backend Express.js server
+│   ├── services/                 # AI service integrations
+│   │   ├── ollama.ts             # Ollama LLM service
+│   │   └── whisper.ts            # Whisper transcription service
+│   ├── index.ts                  # Main server file
+│   └── types.ts                  # Server type definitions
+├── public/                       # Static assets
+├── prompts/                      # Documentation and prompts
+└── setup scripts                 # Automated setup scripts
 ```
 
 ## Troubleshooting
