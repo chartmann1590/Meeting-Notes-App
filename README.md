@@ -64,9 +64,10 @@ MeetingScribe AI is a visually stunning, minimalist web application designed to 
     - ✅ Check and install Node.js (if needed)
     - ✅ Install all npm dependencies
     - ✅ Check and install Ollama (if needed)
-    - ✅ Start the Ollama service
-    - ✅ Download Whisper model for transcription
-    - ✅ Download Llama 3.2 model for summarization
+    - ✅ Start the Ollama service (if not already running)
+    - ✅ Check for existing AI models before downloading
+    - ✅ Download Whisper model for transcription (if not installed)
+    - ✅ Download Llama 3.2 model for summarization (if not installed)
     - ✅ Optionally start the application automatically
 
 3.  **Open your browser:**
@@ -81,7 +82,8 @@ The `./setup.sh` script is designed to make getting started as easy as possible:
 - **🔍 Smart Detection:** Automatically detects your operating system and existing installations
 - **📦 Auto-Installation:** Installs Node.js and Ollama if they're missing
 - **⚡ Dependency Management:** Installs all npm dependencies automatically
-- **🤖 AI Model Setup:** Downloads and configures Whisper and Llama models
+- **🤖 AI Model Setup:** Checks for existing models before downloading, saves time and bandwidth
+- **🔄 Service Detection:** Detects if Ollama is already running and skips unnecessary startup
 - **🚀 One-Click Start:** Optionally starts the application immediately after setup
 - **🎨 Beautiful Output:** Color-coded progress indicators and clear status messages
 - **🛡️ Error Handling:** Graceful error handling with helpful troubleshooting tips
@@ -91,8 +93,8 @@ The `./setup.sh` script is designed to make getting started as easy as possible:
 
 1. **Node.js Check:** Verifies Node.js 18+ is installed, offers to install if missing
 2. **Dependencies:** Runs `npm install` to get all required packages
-3. **Ollama Setup:** Checks for Ollama, installs if needed, starts the service
-4. **AI Models:** Downloads Whisper (transcription) and Llama 3.2:3b (summarization)
+3. **Ollama Setup:** Checks for Ollama, installs if needed, starts the service (if not running)
+4. **AI Models:** Checks for existing models, downloads only what's missing (Whisper + Llama 3.2:3b)
 5. **Ready to Go:** Optionally starts the application and opens it in your browser
 
 ## Manual Setup (Alternative)

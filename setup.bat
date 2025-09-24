@@ -57,8 +57,16 @@ if %errorlevel% neq 0 (
 
 echo [SUCCESS] Ollama is installed
 
-REM Start Ollama service
+REM Check if Ollama service is already running
 echo.
+echo [INFO] Checking Ollama service status...
+curl -s http://localhost:11434/api/tags >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [SUCCESS] Ollama service is already running
+    goto ollama_ready
+)
+
+REM Start Ollama service
 echo [INFO] Starting Ollama service...
 start /b ollama serve
 timeout /t 5 /nobreak >nul
@@ -74,24 +82,44 @@ goto wait_loop
 :ollama_ready
 echo [SUCCESS] Ollama service is ready
 
-REM Download AI models
+REM Check for existing AI models
 echo.
-echo [INFO] Downloading AI models (this may take a while)...
-echo [INFO] Downloading Whisper model for transcription...
-ollama pull whisper
-if %errorlevel% neq 0 (
-    echo [ERROR] Failed to download Whisper model
-    pause
-    exit /b 1
+echo [INFO] Checking for existing AI models...
+
+REM Check for Whisper model
+ollama list | findstr /i "whisper" >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [SUCCESS] Whisper model is already installed
+) else (
+    echo [INFO] Downloading Whisper model for transcription (this may take a while)...
+    ollama pull whisper
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to download Whisper model
+        pause
+        exit /b 1
+    )
+    echo [SUCCESS] Whisper model downloaded successfully
 )
 
-echo [INFO] Downloading Llama 3.2 model for summarization...
-ollama pull llama3.2:3b
-if %errorlevel% neq 0 (
-    echo [ERROR] Failed to download Llama 3.2 model
-    pause
-    exit /b 1
+REM Check for Llama 3.2 model
+ollama list | findstr /i "llama3.2:3b" >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [SUCCESS] Llama 3.2:3b model is already installed
+) else (
+    echo [INFO] Downloading Llama 3.2:3b model for summarization (this may take a while)...
+    ollama pull llama3.2:3b
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to download Llama 3.2:3b model
+        pause
+        exit /b 1
+    )
+    echo [SUCCESS] Llama 3.2:3b model downloaded successfully
 )
+
+REM Show installed models
+echo.
+echo [INFO] Currently installed models:
+ollama list
 
 echo.
 echo ========================================

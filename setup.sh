@@ -106,6 +106,11 @@ install_ollama() {
     fi
 }
 
+# Function to check if Ollama service is running
+is_ollama_running() {
+    curl -s http://localhost:11434/api/tags >/dev/null 2>&1
+}
+
 # Function to wait for Ollama service to be ready
 wait_for_ollama() {
     print_status "Waiting for Ollama service to be ready..."
@@ -113,7 +118,7 @@ wait_for_ollama() {
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        if curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then
+        if is_ollama_running; then
             print_success "Ollama service is ready!"
             return 0
         fi
@@ -127,26 +132,59 @@ wait_for_ollama() {
     return 1
 }
 
-# Function to pull AI models
-pull_models() {
-    print_status "Downloading AI models (this may take a while)..."
-    
-    # Pull Whisper model for transcription
-    print_status "Downloading Whisper model for transcription..."
-    if ollama pull whisper; then
-        print_success "Whisper model downloaded successfully"
+# Function to check if a model is already installed
+is_model_installed() {
+    local model_name="$1"
+    if is_ollama_running; then
+        ollama list 2>/dev/null | grep -q "$model_name"
     else
-        print_error "Failed to download Whisper model"
         return 1
     fi
-    
-    # Pull LLM model for summarization
-    print_status "Downloading Llama 3.2 model for summarization..."
-    if ollama pull llama3.2:3b; then
-        print_success "Llama 3.2 model downloaded successfully"
+}
+
+# Function to get list of installed models
+get_installed_models() {
+    if is_ollama_running; then
+        ollama list 2>/dev/null | grep -v "NAME" | awk '{print $1}' | tr '\n' ' '
     else
-        print_error "Failed to download Llama 3.2 model"
-        return 1
+        echo ""
+    fi
+}
+
+# Function to pull AI models
+pull_models() {
+    print_status "Checking for existing AI models..."
+    
+    # Check for Whisper model
+    if is_model_installed "whisper"; then
+        print_success "Whisper model is already installed"
+    else
+        print_status "Downloading Whisper model for transcription (this may take a while)..."
+        if ollama pull whisper; then
+            print_success "Whisper model downloaded successfully"
+        else
+            print_error "Failed to download Whisper model"
+            return 1
+        fi
+    fi
+    
+    # Check for Llama 3.2 model
+    if is_model_installed "llama3.2:3b"; then
+        print_success "Llama 3.2:3b model is already installed"
+    else
+        print_status "Downloading Llama 3.2:3b model for summarization (this may take a while)..."
+        if ollama pull llama3.2:3b; then
+            print_success "Llama 3.2:3b model downloaded successfully"
+        else
+            print_error "Failed to download Llama 3.2:3b model"
+            return 1
+        fi
+    fi
+    
+    # Show installed models
+    local installed_models=$(get_installed_models)
+    if [ -n "$installed_models" ]; then
+        print_status "Currently installed models: $installed_models"
     fi
 }
 
@@ -247,16 +285,21 @@ main() {
     fi
     
     # Step 4: Start Ollama service
-    print_status "Starting Ollama service..."
-    if ! pgrep -x "ollama" > /dev/null; then
-        ollama serve &
-        sleep 3
-    fi
-    
-    # Wait for Ollama to be ready
-    if ! wait_for_ollama; then
-        print_error "Failed to start Ollama service"
-        exit 1
+    print_status "Checking Ollama service status..."
+    if is_ollama_running; then
+        print_success "Ollama service is already running"
+    else
+        print_status "Starting Ollama service..."
+        if ! pgrep -x "ollama" > /dev/null; then
+            ollama serve &
+            sleep 3
+        fi
+        
+        # Wait for Ollama to be ready
+        if ! wait_for_ollama; then
+            print_error "Failed to start Ollama service"
+            exit 1
+        fi
     fi
     
     # Step 5: Download AI models

@@ -22,9 +22,10 @@ setup.bat
 
 1. ✅ **Checks Node.js** - Installs if missing (requires v18+)
 2. ✅ **Installs dependencies** - Downloads all npm packages
-3. ✅ **Sets up Ollama** - Installs and starts the AI service
-4. ✅ **Downloads AI models** - Whisper (transcription) + Llama 3.2 (summarization)
-5. ✅ **Starts the app** - Optionally launches the application
+3. ✅ **Sets up Ollama** - Installs and starts the AI service (if not already running)
+4. ✅ **Checks existing models** - Skips download if Whisper/Llama are already installed
+5. ✅ **Downloads AI models** - Only downloads what's missing (saves time & bandwidth)
+6. ✅ **Starts the app** - Optionally launches the application
 
 ## After Setup
 
@@ -52,6 +53,7 @@ chmod +x setup.sh
 - Whisper model: ~1.5GB
 - Llama 3.2 model: ~2GB
 - Total download time: 5-15 minutes depending on your internet
+- **Good news:** The script checks for existing models and skips downloads if already installed!
 
 ## Manual Start
 

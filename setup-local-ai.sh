@@ -16,22 +16,42 @@ fi
 
 echo "✅ Ollama is installed"
 
-# Start Ollama service if not running
-if ! pgrep -x "ollama" > /dev/null; then
-    echo "🔄 Starting Ollama service..."
-    ollama serve &
-    sleep 3
+# Check if Ollama service is already running
+if curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then
+    echo "✅ Ollama service is already running"
+else
+    # Start Ollama service if not running
+    if ! pgrep -x "ollama" > /dev/null; then
+        echo "🔄 Starting Ollama service..."
+        ollama serve &
+        sleep 3
+    fi
+    echo "✅ Ollama service is running"
 fi
 
-echo "✅ Ollama service is running"
+# Check for existing models before downloading
+echo "🔍 Checking for existing AI models..."
 
-# Pull Whisper model for transcription
-echo "📥 Downloading Whisper model for transcription..."
-ollama pull whisper
+# Check for Whisper model
+if ollama list 2>/dev/null | grep -q "whisper"; then
+    echo "✅ Whisper model is already installed"
+else
+    echo "📥 Downloading Whisper model for transcription..."
+    ollama pull whisper
+fi
 
-# Pull a good LLM model for summarization
-echo "📥 Downloading Llama 3.2 model for summarization..."
-ollama pull llama3.2:3b
+# Check for Llama 3.2 model
+if ollama list 2>/dev/null | grep -q "llama3.2:3b"; then
+    echo "✅ Llama 3.2:3b model is already installed"
+else
+    echo "📥 Downloading Llama 3.2 model for summarization..."
+    ollama pull llama3.2:3b
+fi
+
+# Show installed models
+echo ""
+echo "📋 Currently installed models:"
+ollama list
 
 echo ""
 echo "🎉 Setup complete! Your local AI services are ready:"
