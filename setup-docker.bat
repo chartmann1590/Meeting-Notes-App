@@ -53,8 +53,66 @@ if %errorlevel% neq 0 (
 
 echo [SUCCESS] Docker Compose is available
 
-REM Start Ollama service
-echo [INFO] Starting Ollama service...
+REM Check if Ollama is already running locally
+echo [INFO] Checking if Ollama is already running locally...
+curl -s http://localhost:11434/api/tags >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [SUCCESS] Ollama is already running locally on port 11434
+    
+    REM Check if required models are available locally
+    echo [INFO] Checking for required AI models in local Ollama...
+    
+    REM Check for Whisper model
+    curl -s http://localhost:11434/api/tags | findstr "whisper" >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo [SUCCESS] Whisper model is available locally
+        set WHISPER_AVAILABLE=true
+    ) else (
+        echo [WARNING] Whisper model not found locally
+        set WHISPER_AVAILABLE=false
+    )
+    
+    REM Check for Llama model
+    curl -s http://localhost:11434/api/tags | findstr "llama3.2:3b" >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo [SUCCESS] Llama 3.2 model is available locally
+        set LLAMA_AVAILABLE=true
+    ) else (
+        echo [WARNING] Llama 3.2 model not found locally
+        set LLAMA_AVAILABLE=false
+    )
+    
+    if "%WHISPER_AVAILABLE%"=="true" if "%LLAMA_AVAILABLE%"=="true" (
+        echo [SUCCESS] All required models are available locally
+        echo [INFO] Skipping Docker Ollama setup - using local installation
+        set USE_LOCAL_OLLAMA=true
+        goto skip_docker_ollama
+    ) else (
+        echo [WARNING] Local Ollama is running but missing required models
+        echo.
+        echo [INFO] You can install the missing models manually:
+        echo [INFO]   • For Whisper: ollama pull whisper
+        echo [INFO]   • For Llama: ollama pull llama3.2:3b
+        echo.
+        set /p CONTINUE_DOCKER="Would you like to continue with Docker setup instead? (y/n): "
+        if /i not "!CONTINUE_DOCKER!"=="y" (
+            echo [ERROR] Please install the required models manually or choose Docker setup
+            pause
+            exit /b 1
+        )
+    )
+) else (
+    REM Check if Ollama process is running
+    tasklist /FI "IMAGENAME eq ollama.exe" 2>NUL | find /I /N "ollama.exe" >nul
+    if %errorlevel% equ 0 (
+        echo [WARNING] Ollama process is running but not accessible on port 11434
+    ) else (
+        echo [INFO] Ollama is not running locally
+    )
+)
+
+REM Start Ollama service via Docker
+echo [INFO] Starting Ollama service via Docker...
 docker-compose up -d ollama
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to start Ollama service
@@ -110,6 +168,8 @@ if %errorlevel% equ 0 (
     )
     echo [SUCCESS] Llama 3.2 model downloaded
 )
+
+:skip_docker_ollama
 
 REM SSL Certificate Setup
 echo.
@@ -295,27 +355,73 @@ if /i "%SSL_SETUP%"=="y" (
 REM Build and start the application
 echo.
 echo [INFO] Building and starting the application...
-docker-compose up -d --build
-if %errorlevel% neq 0 (
-    echo [ERROR] Failed to start the application
-    pause
-    exit /b 1
+
+REM Check if we're using local Ollama
+if "%USE_LOCAL_OLLAMA%"=="true" (
+    echo [INFO] Using local Ollama - starting application without Docker Ollama service...
+    
+    REM Create a temporary docker-compose override for local Ollama
+    echo [INFO] Creating temporary configuration for local Ollama...
+    (
+    echo version: '3.8'
+    echo services:
+    echo   app:
+    echo     environment:
+    echo       - NODE_ENV=production
+    echo       - OLLAMA_API_URL=http://host.docker.internal:11434/api/generate
+    echo       - WHISPER_MODEL=whisper
+    echo       - OLLAMA_MODEL=llama3.2:3b
+    echo       - HTTPS_PORT=3443
+    echo     depends_on: []
+    echo     extra_hosts:
+    echo       - "host.docker.internal:host-gateway"
+    ) > docker-compose.override.yml
+    
+    docker-compose up -d --build app
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to start the application
+        pause
+        exit /b 1
+    )
+    timeout /t 5 /nobreak >nul
+    echo [SUCCESS] Application started successfully with local Ollama!
+) else (
+    echo [INFO] Starting application with Docker Ollama service...
+    docker-compose up -d --build
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to start the application
+        pause
+        exit /b 1
+    )
+    echo [SUCCESS] Application started successfully!
 )
 
 echo.
-echo [SUCCESS] ^🎉 MeetingScribe AI is now running in Docker!
+if "%USE_LOCAL_OLLAMA%"=="true" (
+    echo [SUCCESS] ^🎉 MeetingScribe AI is now running with local Ollama!
+) else (
+    echo [SUCCESS] ^🎉 MeetingScribe AI is now running in Docker!
+)
 echo.
 echo Access your application:
 if "%SSL_AVAILABLE%"=="true" (
     echo   • Frontend (HTTPS): https://localhost:3000
     echo   • Backend (HTTPS):  https://localhost:3443
     echo   • Backend (HTTP):   http://localhost:3001
-    echo   • Ollama API:       http://localhost:11434
+    if "%USE_LOCAL_OLLAMA%"=="true" (
+        echo   • Ollama API:       http://localhost:11434 (local)
+    ) else (
+        echo   • Ollama API:       http://localhost:11434 (Docker)
+    )
     echo   • 🎤 Microphone access enabled via HTTPS
 ) else (
     echo   • Frontend: http://localhost:3000
     echo   • Backend API: http://localhost:3001
-    echo   • Ollama API: http://localhost:11434
+    if "%USE_LOCAL_OLLAMA%"=="true" (
+        echo   • Ollama API: http://localhost:11434 (local)
+    ) else (
+        echo   • Ollama API: http://localhost:11434 (Docker)
+    )
     echo   • ⚠️  Microphone access requires HTTPS
 )
 echo.
@@ -323,7 +429,12 @@ echo Useful commands:
 echo   • View logs: docker-compose logs -f
 echo   • Stop services: docker-compose down
 echo   • Restart services: docker-compose restart
-echo   • Update models: docker-compose exec ollama ollama pull ^<model-name^>
+if "%USE_LOCAL_OLLAMA%"=="true" (
+    echo   • Update models: ollama pull ^<model-name^>
+    echo   • List models: ollama list
+) else (
+    echo   • Update models: docker-compose exec ollama ollama pull ^<model-name^>
+)
 echo.
 echo To stop the application:
 echo   docker-compose down
@@ -331,4 +442,10 @@ echo.
 echo To remove everything (including data):
 echo   docker-compose down -v
 echo.
+
+REM Clean up temporary override file if it exists
+if exist "docker-compose.override.yml" (
+    del "docker-compose.override.yml" 2>nul
+)
+
 pause
