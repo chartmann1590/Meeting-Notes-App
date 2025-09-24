@@ -128,24 +128,119 @@ echo.
 set /p SSL_SETUP="Would you like to generate self-signed SSL certificates? (y/n): "
 if /i "%SSL_SETUP%"=="y" (
     echo.
-    echo [INFO] Generating SSL certificates...
-    if exist "scripts\generate-ssl-certs.bat" (
-        call scripts\generate-ssl-certs.bat ssl-certs localhost
-        if %errorlevel% equ 0 (
-            echo [SUCCESS] SSL certificates generated successfully!
-            set SSL_AVAILABLE=true
-        ) else (
-            echo [ERROR] Failed to generate SSL certificates
-            set SSL_AVAILABLE=false
-        )
-    ) else (
-        echo [ERROR] SSL certificate generation script not found
+    echo [INFO] Checking OpenSSL availability...
+    openssl version >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo [ERROR] OpenSSL is not installed!
+        echo.
+        echo [INFO] Please install OpenSSL:
+        echo   Download from: https://slproweb.com/products/Win32OpenSSL.html
+        echo   Or install via Chocolatey: choco install openssl
+        echo.
+        echo [WARNING] Skipping SSL setup. Microphone access will not work in browsers.
         set SSL_AVAILABLE=false
+        goto ssl_setup_complete
     )
+    
+    echo [SUCCESS] OpenSSL is available
+    
+    REM Check if certificates already exist
+    if exist "ssl-certs\server.crt" if exist "ssl-certs\server.key" (
+        echo.
+        echo [WARNING] SSL certificates already exist in ssl-certs
+        echo.
+        set /p REGENERATE="Would you like to regenerate them? (y/n): "
+        if /i not "!REGENERATE!"=="y" (
+            echo [SUCCESS] Using existing SSL certificates
+            set SSL_AVAILABLE=true
+            goto ssl_setup_complete
+        )
+    )
+    
+    echo.
+    echo [INFO] Generating SSL certificates for domain: localhost
+    
+    REM Create certificates directory
+    if not exist "ssl-certs" mkdir "ssl-certs"
+    
+    REM Generate private key
+    echo [INFO] Generating private key...
+    openssl genrsa -out "ssl-certs\server.key" 2048
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to generate private key
+        set SSL_AVAILABLE=false
+        goto ssl_setup_complete
+    )
+    
+    REM Generate certificate signing request
+    echo [INFO] Generating certificate signing request...
+    openssl req -new -key "ssl-certs\server.key" -out "ssl-certs\server.csr" -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=localhost"
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to generate certificate signing request
+        set SSL_AVAILABLE=false
+        goto ssl_setup_complete
+    )
+    
+    REM Create OpenSSL config file for SAN
+    echo [INFO] Creating OpenSSL configuration...
+    (
+    echo [req]
+    echo distinguished_name = req_distinguished_name
+    echo req_extensions = v3_req
+    echo prompt = no
+    echo.
+    echo [req_distinguished_name]
+    echo C = US
+    echo ST = State
+    echo L = City
+    echo O = Organization
+    echo OU = Unit
+    echo CN = localhost
+    echo.
+    echo [v3_req]
+    echo keyUsage = keyEncipherment, dataEncipherment
+    echo extendedKeyUsage = serverAuth
+    echo subjectAltName = @alt_names
+    echo.
+    echo [alt_names]
+    echo DNS.1 = localhost
+    echo DNS.2 = localhost
+    echo IP.1 = 127.0.0.1
+    echo IP.2 = ::1
+    ) > "ssl-certs\openssl.conf"
+    
+    REM Generate self-signed certificate
+    echo [INFO] Generating self-signed certificate...
+    openssl x509 -req -days 365 -in "ssl-certs\server.csr" -signkey "ssl-certs\server.key" -out "ssl-certs\server.crt" -extensions v3_req -extfile "ssl-certs\openssl.conf"
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to generate certificate
+        set SSL_AVAILABLE=false
+        goto ssl_setup_complete
+    )
+    
+    REM Clean up temporary files
+    del "ssl-certs\server.csr" 2>nul
+    del "ssl-certs\openssl.conf" 2>nul
+    
+    echo.
+    echo [SUCCESS] SSL certificates generated successfully!
+    echo [INFO] Certificate files:
+    echo [INFO]   • Private Key: ssl-certs\server.key
+    echo [INFO]   • Certificate: ssl-certs\server.crt
+    echo.
+    echo [WARNING] Important notes:
+    echo [WARNING]   • These are self-signed certificates for development only
+    echo [WARNING]   • Your browser will show a security warning - this is normal
+    echo [WARNING]   • Click 'Advanced' and 'Proceed to localhost' to continue
+    echo [WARNING]   • For production, use certificates from a trusted CA
+    echo.
+    set SSL_AVAILABLE=true
 ) else (
     echo [WARNING] Skipping SSL setup. Microphone access will not work in browsers.
     set SSL_AVAILABLE=false
 )
+
+:ssl_setup_complete
 
 REM Build and start the application
 echo.
