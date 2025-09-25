@@ -8,7 +8,8 @@ import { toast } from "sonner";
 
 interface ServiceStatus {
   connected: boolean;
-  model?: string;
+  currentModel?: string;
+  availableModels?: string[];
   error?: string;
 }
 
@@ -88,25 +89,80 @@ export function SettingsPage() {
       </CardHeader>
       <CardContent>
         {status.connected ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <p className="text-sm text-green-600 font-medium">
               ✅ Service is running and accessible
             </p>
-            {status.model && (
-              <p className="text-sm text-slate-600">
-                Model: <span className="font-mono bg-slate-100 px-2 py-1 rounded">{status.model}</span>
-              </p>
+            
+            {/* Current Model */}
+            {status.currentModel && (
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-slate-700">Currently Using:</p>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
+                    {status.currentModel}
+                  </span>
+                  <Badge variant="secondary" className="text-xs">Active</Badge>
+                </div>
+              </div>
+            )}
+            
+            {/* Available Models */}
+            {status.availableModels && status.availableModels.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-slate-700">
+                  Available Models ({status.availableModels.length}):
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {status.availableModels.map((model, index) => (
+                    <span
+                      key={index}
+                      className={`font-mono text-xs px-2 py-1 rounded ${
+                        model === status.currentModel
+                          ? 'bg-green-100 text-green-800 border border-green-200'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {model}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* No models available */}
+            {status.availableModels && status.availableModels.length === 0 && (
+              <div className="space-y-1">
+                <p className="text-sm text-amber-600 font-medium">⚠️ No models found</p>
+                <p className="text-xs text-slate-500">
+                  Pull models using: <code className="bg-slate-100 px-1 rounded">ollama pull &lt;model-name&gt;</code>
+                </p>
+              </div>
             )}
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <p className="text-sm text-red-600 font-medium">
               ❌ Service is not accessible
             </p>
+            
+            {/* Show configured model even when disconnected */}
+            {status.currentModel && (
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-slate-700">Configured Model:</p>
+                <span className="font-mono bg-red-50 text-red-700 px-2 py-1 rounded text-sm">
+                  {status.currentModel}
+                </span>
+              </div>
+            )}
+            
             {status.error && (
-              <p className="text-sm text-slate-600">
-                Error: <span className="font-mono bg-red-50 px-2 py-1 rounded text-red-700">{status.error}</span>
-              </p>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-slate-700">Error Details:</p>
+                <p className="text-sm text-slate-600">
+                  <span className="font-mono bg-red-50 px-2 py-1 rounded text-red-700">{status.error}</span>
+                </p>
+              </div>
             )}
           </div>
         )}
@@ -177,6 +233,107 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Model Information */}
+      {servicesStatus && (servicesStatus.ollama.connected || servicesStatus.whisper.connected) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="w-5 h-5" />
+              Model Information
+            </CardTitle>
+            <CardDescription>
+              Detailed information about available and configured models
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Ollama Models */}
+            {servicesStatus.ollama.connected && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-slate-800 flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-blue-600" />
+                  Ollama LLM Models
+                </h4>
+                <div className="bg-slate-50 p-3 rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Current Model:</span>
+                    <span className="font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
+                      {servicesStatus.ollama.currentModel || 'Not configured'}
+                    </span>
+                  </div>
+                  {servicesStatus.ollama.availableModels && servicesStatus.ollama.availableModels.length > 0 && (
+                    <div>
+                      <span className="text-sm font-medium">Available Models:</span>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {servicesStatus.ollama.availableModels.map((model, index) => (
+                          <span
+                            key={index}
+                            className={`font-mono text-xs px-2 py-1 rounded ${
+                              model === servicesStatus.ollama.currentModel
+                                ? 'bg-blue-200 text-blue-900 border border-blue-300'
+                                : 'bg-slate-200 text-slate-700'
+                            }`}
+                          >
+                            {model}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Whisper Models */}
+            {servicesStatus.whisper.connected && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-slate-800 flex items-center gap-2">
+                  <Mic className="w-4 h-4 text-green-600" />
+                  Whisper Transcription Models
+                </h4>
+                <div className="bg-slate-50 p-3 rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Current Model:</span>
+                    <span className="font-mono bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
+                      {servicesStatus.whisper.currentModel || 'Not configured'}
+                    </span>
+                  </div>
+                  {servicesStatus.whisper.availableModels && servicesStatus.whisper.availableModels.length > 0 && (
+                    <div>
+                      <span className="text-sm font-medium">Available Models:</span>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {servicesStatus.whisper.availableModels.map((model, index) => (
+                          <span
+                            key={index}
+                            className={`font-mono text-xs px-2 py-1 rounded ${
+                              model === servicesStatus.whisper.currentModel
+                                ? 'bg-green-200 text-green-900 border border-green-300'
+                                : 'bg-slate-200 text-slate-700'
+                            }`}
+                          >
+                            {model}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Model Management Tips */}
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <h5 className="font-medium text-blue-900 mb-2">💡 Model Management Tips</h5>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>• Use <code className="bg-blue-100 px-1 rounded">ollama list</code> to see all installed models</li>
+                <li>• Use <code className="bg-blue-100 px-1 rounded">ollama pull &lt;model-name&gt;</code> to install new models</li>
+                <li>• Use <code className="bg-blue-100 px-1 rounded">ollama rm &lt;model-name&gt;</code> to remove unused models</li>
+                <li>• Model names are case-sensitive and must match exactly</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Troubleshooting */}
       {servicesStatus && (!servicesStatus.ollama.connected || !servicesStatus.whisper.connected) && (
         <Card className="border-yellow-200 bg-yellow-50">
@@ -187,14 +344,40 @@ export function SettingsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-yellow-700">
-            <div className="space-y-3">
+            <div className="space-y-4">
               <p className="font-medium">Some services are not connected. Here's how to fix this:</p>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                <li>Make sure Ollama is installed and running: <code className="bg-yellow-100 px-1 rounded">ollama serve</code></li>
-                <li>Pull the required models: <code className="bg-yellow-100 px-1 rounded">ollama pull llama3.2:3b</code> and <code className="bg-yellow-100 px-1 rounded">ollama pull whisper</code></li>
-                <li>Check that Ollama is accessible at <code className="bg-yellow-100 px-1 rounded">http://localhost:11434</code></li>
-                <li>Restart the application after setting up the services</li>
-              </ul>
+              
+              <div className="space-y-3">
+                <div>
+                  <p className="font-medium text-sm">1. Start Ollama Service:</p>
+                  <code className="bg-yellow-100 px-2 py-1 rounded text-sm">ollama serve</code>
+                </div>
+                
+                <div>
+                  <p className="font-medium text-sm">2. Install Required Models:</p>
+                  <div className="space-y-1 ml-4">
+                    <p className="text-sm">For AI Summaries:</p>
+                    <code className="bg-yellow-100 px-2 py-1 rounded text-sm">ollama pull llama3.2:3b</code>
+                    <p className="text-sm">For Transcription:</p>
+                    <code className="bg-yellow-100 px-2 py-1 rounded text-sm">ollama pull whisper</code>
+                  </div>
+                </div>
+                
+                <div>
+                  <p className="font-medium text-sm">3. Verify Installation:</p>
+                  <code className="bg-yellow-100 px-2 py-1 rounded text-sm">ollama list</code>
+                </div>
+                
+                <div>
+                  <p className="font-medium text-sm">4. Check Service Access:</p>
+                  <p className="text-sm">Ensure Ollama is accessible at <code className="bg-yellow-100 px-1 rounded">http://localhost:11434</code></p>
+                </div>
+                
+                <div>
+                  <p className="font-medium text-sm">5. Restart Application:</p>
+                  <p className="text-sm">After setting up services, refresh this page or restart the application</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
