@@ -8,6 +8,9 @@ export class RealTranscriber {
   private accumulatedTranscript = '';
   private recognition: any = null;
   private useBrowserRecognition = false;
+  private retryCount = 0;
+  private maxRetries = 3;
+  private lastProcessedChunk = 0;
 
   constructor() {
     // Check if MediaRecorder is supported
@@ -48,6 +51,23 @@ export class RealTranscriber {
       
       this.recognition.onerror = (event: any) => {
         console.error('❌ Browser speech recognition error:', event.error);
+        this.handleRecognitionError(event.error);
+      };
+      
+      this.recognition.onend = () => {
+        console.log('🔄 Browser speech recognition ended, restarting...');
+        if (this.isRecording && this.useBrowserRecognition) {
+          // Restart recognition after a brief delay
+          setTimeout(() => {
+            if (this.isRecording && this.recognition) {
+              try {
+                this.recognition.start();
+              } catch (error) {
+                console.error('❌ Failed to restart speech recognition:', error);
+              }
+            }
+          }, 100);
+        }
       };
     }
   }
@@ -158,23 +178,36 @@ export class RealTranscriber {
   }
 
   private async processAudioChunk(): Promise<void> {
-    if (this.audioChunks.length === 0) return;
+    if (this.audioChunks.length === 0 || this.audioChunks.length <= this.lastProcessedChunk) return;
 
     try {
-      // Process only the latest chunk for live transcription
-      const latestChunk = this.audioChunks[this.audioChunks.length - 1];
-      const audioBlob = new Blob([latestChunk], { type: 'audio/webm' });
+      // Process only new chunks since last processing
+      const newChunks = this.audioChunks.slice(this.lastProcessedChunk);
+      const audioBlob = new Blob(newChunks, { type: 'audio/webm' });
+      
+      // Skip very small chunks (likely silence or noise)
+      if (audioBlob.size < 1000) {
+        console.log(`⏭️ Skipping small audio chunk: ${audioBlob.size} bytes`);
+        this.lastProcessedChunk = this.audioChunks.length;
+        return;
+      }
       
       console.log(`🔄 Processing audio chunk: ${audioBlob.size} bytes`);
       
-      // Send audio to Whisper API
+      // Send audio to Whisper API with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const formData = new FormData();
       formData.append('audio', audioBlob, 'live-chunk.webm');
 
       const response = await fetch('/api/transcribe', {
         method: 'POST',
         body: formData,
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`Transcription failed: ${response.status}`);
@@ -188,13 +221,22 @@ export class RealTranscriber {
           console.log(`📝 New transcript chunk: "${newTranscript}"`);
           this.accumulatedTranscript += (this.accumulatedTranscript ? ' ' : '') + newTranscript;
           this.onTranscriptUpdate(this.accumulatedTranscript);
+          this.retryCount = 0; // Reset retry count on success
         }
       } else {
         console.warn('⚠️ No transcript received from chunk:', result.error);
       }
+      
+      this.lastProcessedChunk = this.audioChunks.length;
     } catch (error) {
       console.error('❌ Audio chunk processing error:', error);
-      // Don't show error to user for individual chunks, just log it
+      this.retryCount++;
+      
+      if (this.retryCount >= this.maxRetries) {
+        console.error('❌ Max retries reached for audio processing, switching to fallback');
+        this.onTranscriptUpdate(this.accumulatedTranscript + ' [Transcription temporarily unavailable]');
+        this.retryCount = 0;
+      }
     }
   }
 
@@ -229,6 +271,31 @@ export class RealTranscriber {
     } catch (error) {
       console.error('❌ Final audio processing error:', error);
       this.onTranscriptUpdate('Error: Failed to transcribe audio. Please try again.');
+    }
+  }
+
+  private handleRecognitionError(error: string): void {
+    console.error('❌ Speech recognition error:', error);
+    
+    switch (error) {
+      case 'no-speech':
+        console.log('🔄 No speech detected, continuing...');
+        break;
+      case 'audio-capture':
+        console.error('❌ Audio capture failed');
+        this.onTranscriptUpdate(this.accumulatedTranscript + ' [Audio capture failed]');
+        break;
+      case 'not-allowed':
+        console.error('❌ Microphone access denied');
+        this.onTranscriptUpdate(this.accumulatedTranscript + ' [Microphone access denied]');
+        break;
+      case 'network':
+        console.error('❌ Network error in speech recognition');
+        this.onTranscriptUpdate(this.accumulatedTranscript + ' [Network error]');
+        break;
+      default:
+        console.error('❌ Unknown speech recognition error:', error);
+        this.onTranscriptUpdate(this.accumulatedTranscript + ' [Speech recognition error]');
     }
   }
 }
