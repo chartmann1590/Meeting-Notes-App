@@ -355,6 +355,53 @@ Complete documentation is available in the [`docs/`](docs/) directory:
 
 For detailed contributing guidelines, see the [Development Guide](docs/DEVELOPMENT_GUIDE.md).
 
+## Testing
+
+The application includes comprehensive testing for live transcription functionality:
+
+### Quick Test
+```bash
+# Run basic functionality test
+node test-app.js
+```
+
+### Comprehensive Live Transcription Testing
+```bash
+# Run end-to-end live transcription tests
+npm run test:live-transcription-e2e
+
+# Run unit tests for transcription components
+npm run test:live-transcription
+
+# Run server-side transcription tests
+npm run test:server
+
+# Run all tests with coverage
+npm run test:coverage
+```
+
+### Test Coverage
+
+The testing suite includes:
+
+- **Unit Tests**: RealTranscriber class, Whisper service, API endpoints
+- **Integration Tests**: Complete live transcription workflow
+- **End-to-End Tests**: Full application testing with real services
+- **Browser Compatibility**: Speech recognition and MediaRecorder support
+- **Error Handling**: Network failures, permission issues, service unavailability
+
+### Test Results
+
+Tests verify:
+- ✅ Backend server health and API endpoints
+- ✅ Frontend build and browser compatibility
+- ✅ Ollama service and AI model availability
+- ✅ Live transcription functionality (browser + server-side)
+- ✅ Error handling and fallback mechanisms
+- ✅ Performance and reliability
+
+For detailed testing information, see [Live Transcription Testing Guide](docs/LIVE_TRANSCRIPTION_TESTING.md).
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.

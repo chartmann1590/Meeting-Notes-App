@@ -70,16 +70,56 @@ async function testOllama() {
       
       if (hasWhisper && hasLlama) {
         console.log('✅ Ollama is running with required models');
+        console.log(`   Whisper models: ${models.filter(m => m.name.includes('whisper')).map(m => m.name).join(', ')}`);
+        console.log(`   LLM models: ${models.filter(m => m.name.includes('llama')).map(m => m.name).join(', ')}`);
         return true;
       } else {
         console.log('⚠️  Ollama is running but missing some models');
-        console.log('   Run: ollama pull whisper && ollama pull llama3.2:3b');
+        if (!hasWhisper) {
+          console.log('   Missing Whisper model. Run: ollama pull whisper');
+        }
+        if (!hasLlama) {
+          console.log('   Missing LLM model. Run: ollama pull llama3.2:3b');
+        }
         return false;
       }
     }
   } catch (e) {
     console.log('⚠️  Ollama is not running or not accessible');
     console.log('   Run: ollama serve');
+    return false;
+  }
+}
+
+// Test 4: Check live transcription endpoint
+async function testLiveTranscription() {
+  try {
+    // Create a small test audio file (silence)
+    const testAudioBuffer = Buffer.alloc(1024);
+    
+    const formData = new FormData();
+    formData.append('audio', new Blob([testAudioBuffer], { type: 'audio/webm' }), 'test.webm');
+    
+    const response = await fetch('http://localhost:3001/api/transcribe', {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success) {
+        console.log('✅ Live transcription endpoint is working');
+        return true;
+      } else {
+        console.log('⚠️  Live transcription endpoint returned error:', result.error);
+        return false;
+      }
+    } else {
+      console.log('❌ Live transcription endpoint failed:', response.status);
+      return false;
+    }
+  } catch (e) {
+    console.log('❌ Live transcription endpoint test failed:', e.message);
     return false;
   }
 }
@@ -104,10 +144,14 @@ async function runTests() {
   // Test Ollama
   results.push(await testOllama());
   
+  // Test live transcription
+  results.push(await testLiveTranscription());
+  
   console.log('\n📊 Test Results:');
   console.log(`Frontend: ${results[0] ? '✅' : '❌'}`);
   console.log(`Backend:  ${results[1] ? '✅' : '❌'}`);
   console.log(`Ollama:   ${results[2] ? '✅' : '⚠️'}`);
+  console.log(`Live Transcription: ${results[3] ? '✅' : '❌'}`);
   
   const allPassed = results.every(r => r === true);
   
