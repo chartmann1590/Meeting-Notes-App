@@ -1,5 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -113,7 +113,7 @@ async function fallbackTranscription(audioFilePath: string): Promise<string> {
 // Alternative implementation using OpenAI Whisper API (if you prefer)
 export async function transcribeAudioWithOpenAI(audioFilePath: string): Promise<string> {
   try {
-    const FormData = (await import('form-data')).default;
+    const { default: FormData } = await import('form-data');
     const formData = new FormData();
     
     formData.append('file', fs.createReadStream(audioFilePath));
@@ -127,7 +127,7 @@ export async function transcribeAudioWithOpenAI(audioFilePath: string): Promise<
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
         ...formData.getHeaders(),
       },
-      body: formData,
+      body: formData as any,
     });
 
     if (!response.ok) {

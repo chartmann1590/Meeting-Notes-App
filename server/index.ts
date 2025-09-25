@@ -1,10 +1,10 @@
 import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
-import path from 'path';
-import fs from 'fs';
-import https from 'https';
-import http from 'http';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as https from 'https';
+import * as http from 'http';
 import { fileURLToPath } from 'url';
 import { transcribeAudio } from './services/whisper.js';
 import { generateSummary } from './services/ollama.js';
