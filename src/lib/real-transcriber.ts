@@ -45,7 +45,7 @@ export class RealTranscriber {
           this.onTranscriptUpdate(this.accumulatedTranscript);
         } else if (interimTranscript) {
           console.log(`🎤 Browser recognition interim: "${interimTranscript}"`);
-          this.onTranscriptUpdate(this.accumulatedTranscript + ' ' + interimTranscript);
+          this.onTranscriptUpdate([this.accumulatedTranscript, interimTranscript].filter(Boolean).join(' '));
         }
       };
       
@@ -100,6 +100,11 @@ export class RealTranscriber {
       
       this.onTranscriptUpdate = onTranscriptUpdate;
       this.accumulatedTranscript = '';
+      // Reset per-session chunk bookkeeping. Without this, a second recording
+      // skipped its first chunks because lastProcessedChunk still pointed past them.
+      this.audioChunks = [];
+      this.lastProcessedChunk = 0;
+      this.retryCount = 0;
       this.isRecording = true;
 
       // Try browser speech recognition first as it's more reliable for live transcription
@@ -261,10 +266,12 @@ export class RealTranscriber {
 
       const result = await response.json();
       
-      if (result.success && result.data.transcript) {
+      if (result.success && typeof result.data?.transcript === 'string') {
         const finalTranscript = result.data.transcript.trim();
         console.log(`📝 Final transcript: "${finalTranscript}"`);
-        this.onTranscriptUpdate(finalTranscript);
+        // An empty final pass (e.g. trailing silence) keeps the live transcript
+        // instead of being reported as a failure.
+        this.onTranscriptUpdate(finalTranscript || this.accumulatedTranscript);
       } else {
         throw new Error(result.error || 'Transcription failed');
       }

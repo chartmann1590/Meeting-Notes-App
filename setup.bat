@@ -24,8 +24,8 @@ node --version
 REM Check Node.js version
 for /f "tokens=1 delims=." %%a in ('node --version') do set NODE_MAJOR=%%a
 set NODE_MAJOR=%NODE_MAJOR:v=%
-if %NODE_MAJOR% lss 18 (
-    echo [ERROR] Node.js version %NODE_MAJOR% is too old. Please install Node.js 18 or higher.
+if %NODE_MAJOR% lss 22 (
+    echo [ERROR] Node.js version %NODE_MAJOR% is too old. Please install Node.js 22 or higher.
     pause
     exit /b 1
 )

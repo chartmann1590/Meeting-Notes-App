@@ -13,7 +13,7 @@ import { MeetingRecord, Summary } from './types.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
+export const app = express();
 const PORT = process.env.PORT || 3001;
 const HTTPS_PORT = process.env.HTTPS_PORT || 3443;
 
@@ -25,7 +25,7 @@ app.use(express.static(path.join(__dirname, '../dist')));
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, 'uploads');
+    const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -213,32 +213,40 @@ app.get('/api/services/status', async (req, res) => {
   }
 });
 
+// Remove an uploaded temp file. A failed cleanup is logged but must never turn
+// a successful transcription into an error response.
+function removeUploadedFile(file?: Express.Multer.File) {
+  if (!file) return;
+  try {
+    fs.unlinkSync(file.path);
+    console.log(`🗑️ Cleaned up temporary file: ${file.filename}`);
+  } catch (cleanupError) {
+    console.warn(`⚠️ Could not remove temporary file ${file.path}:`, cleanupError);
+  }
+}
+
 // Transcribe audio endpoint
 app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
-  try {
-    if (!req.file) {
-      console.log('❌ No audio file provided in transcription request');
-      return res.status(400).json({
-        success: false,
-        error: 'No audio file provided'
-      });
-    }
+  if (!req.file) {
+    console.log('❌ No audio file provided in transcription request');
+    return res.status(400).json({
+      success: false,
+      error: 'No audio file provided'
+    });
+  }
 
+  try {
     console.log(`🎵 Transcribing audio file: ${req.file.filename} (${req.file.size} bytes)`);
     console.log(`📁 File path: ${req.file.path}`);
-    
+
     const startTime = Date.now();
     const transcript = await transcribeAudio(req.file.path);
     const processingTime = Date.now() - startTime;
-    
+
     console.log(`✅ Transcription completed in ${processingTime}ms`);
     console.log(`📝 Transcript length: ${transcript.length} characters`);
     console.log(`📝 Transcript preview: "${transcript.substring(0, 100)}${transcript.length > 100 ? '...' : ''}"`);
-    
-    // Clean up uploaded file
-    fs.unlinkSync(req.file.path);
-    console.log(`🗑️ Cleaned up temporary file: ${req.file.filename}`);
-    
+
     res.json({
       success: true,
       data: { transcript }
@@ -249,6 +257,9 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
       success: false,
       error: 'Failed to transcribe audio'
     });
+  } finally {
+    // Clean up the uploaded file on success AND on failure (it used to leak on errors)
+    removeUploadedFile(req.file);
   }
 });
 
@@ -330,6 +341,15 @@ app.post('/api/meetings', (req, res) => {
   }
 });
 
+// Upload errors (e.g. file over the 25MB limit) come back as JSON, not an HTML error page
+app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err instanceof multer.MulterError) {
+    const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+    return res.status(status).json({ success: false, error: err.message });
+  }
+  next(err);
+});
+
 // Serve React app for all other routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'));
@@ -379,20 +399,23 @@ function startHTTPSServer() {
   }
 }
 
-// Start servers based on SSL certificate availability
-if (checkSSLCertificates()) {
-  console.log('🔒 SSL certificates found, starting HTTPS server...');
-  const httpsServer = startHTTPSServer();
+// Start servers based on SSL certificate availability.
+// Skipped under Vitest so tests can import `app` without opening ports.
+if (!process.env.VITEST) {
+  if (checkSSLCertificates()) {
+    console.log('🔒 SSL certificates found, starting HTTPS server...');
+    const httpsServer = startHTTPSServer();
   
-  if (httpsServer) {
-    // Also start HTTP server for fallback
-    startHTTPServer();
+    if (httpsServer) {
+      // Also start HTTP server for fallback
+      startHTTPServer();
+    } else {
+      console.log('⚠️  HTTPS server failed to start, falling back to HTTP only');
+      startHTTPServer();
+    }
   } else {
-    console.log('⚠️  HTTPS server failed to start, falling back to HTTP only');
+    console.log('⚠️  No SSL certificates found, starting HTTP server only');
+    console.log('   Run the setup script with SSL option to enable microphone access');
     startHTTPServer();
   }
-} else {
-  console.log('⚠️  No SSL certificates found, starting HTTP server only');
-  console.log('   Run the setup script with SSL option to enable microphone access');
-  startHTTPServer();
 }

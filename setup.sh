@@ -430,11 +430,11 @@ main() {
     print_header "📦 Step 1: Checking Node.js..."
     NODE_VERSION=$(get_node_version)
     
-    if [ "$NODE_VERSION" -lt 18 ]; then
+    if [ "$NODE_VERSION" -lt 22 ]; then
         if [ "$NODE_VERSION" -eq 0 ]; then
             print_warning "Node.js is not installed"
         else
-            print_warning "Node.js version $NODE_VERSION is too old (minimum required: 18)"
+            print_warning "Node.js version $NODE_VERSION is too old (minimum required: 22)"
         fi
         
         echo ""
@@ -445,7 +445,7 @@ main() {
             install_nodejs
             print_success "Node.js installed successfully"
         else
-            print_error "Node.js installation required. Please install Node.js 18+ manually from https://nodejs.org/"
+            print_error "Node.js installation required. Please install Node.js 22+ manually from https://nodejs.org/"
             exit 1
         fi
     else
