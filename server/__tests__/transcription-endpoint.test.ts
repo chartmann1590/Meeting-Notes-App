@@ -1,248 +1,226 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
-import express from 'express';
-import multer from 'multer';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
-import { transcribeAudio } from '../services/whisper.js';
 
-// Mock the whisper service
+// These tests exercise the real /api/transcribe route from server/index.ts
+// (real multer upload, real file cleanup). Only the external services are mocked.
 vi.mock('../services/whisper.js', () => ({
-  transcribeAudio: vi.fn()
+  transcribeAudio: vi.fn(),
+}));
+vi.mock('../services/ollama.js', () => ({
+  generateSummary: vi.fn(),
 }));
 
-// Mock fs
-vi.mock('fs', () => ({
-  existsSync: vi.fn(),
-  mkdirSync: vi.fn(),
-  unlinkSync: vi.fn()
-}));
+// Wrap unlinkSync so a test can make cleanup fail; it calls the real one by default.
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs')>();
+  const unlinkSync = vi.fn((p: fs.PathLike) => actual.unlinkSync(p));
+  return { ...actual, default: { ...actual, unlinkSync }, unlinkSync };
+});
 
-// Mock multer
-vi.mock('multer', () => ({
-  default: {
-    diskStorage: vi.fn(() => ({})),
-    limits: vi.fn(() => ({})),
-    single: vi.fn(() => (req: any, res: any, next: any) => {
-      // Mock file upload
-      req.file = {
-        filename: 'test-audio.webm',
-        path: '/tmp/test-audio.webm',
-        size: 1024,
-        originalname: 'test-audio.webm'
-      };
-      next();
-    })
-  }
-}));
+const uploadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mna-uploads-'));
+process.env.UPLOAD_DIR = uploadDir;
+
+const { app } = await import('../index.js');
+const { transcribeAudio } = await import('../services/whisper.js');
+const mockTranscribe = vi.mocked(transcribeAudio);
+
+const uploadedFiles = () => fs.readdirSync(uploadDir);
 
 describe('Transcription Endpoint', () => {
-  let app: express.Application;
-  
-  beforeEach(() => {
-    vi.clearAllMocks();
-    
-    // Create a test Express app
-    app = express();
-    app.use(express.json());
-    
-    // Mock the transcription endpoint
-    app.post('/api/transcribe', (req, res) => {
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          error: 'No audio file provided'
-        });
-      }
-      
-      // Mock transcription
-      transcribeAudio(req.file.path)
-        .then(transcript => {
-          // Mock file cleanup
-          fs.unlinkSync(req.file.path);
-          
-          res.json({
-            success: true,
-            data: { transcript }
-          });
-        })
-        .catch(error => {
-          res.status(500).json({
-            success: false,
-            error: 'Failed to transcribe audio'
-          });
-        });
-    });
+  beforeAll(() => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
-  
-  afterEach(() => {
+
+  beforeEach(() => {
+    mockTranscribe.mockReset();
+    vi.mocked(fs.unlinkSync).mockClear();
+    for (const f of uploadedFiles()) fs.rmSync(path.join(uploadDir, f));
+  });
+
+  afterAll(() => {
+    fs.rmSync(uploadDir, { recursive: true, force: true });
     vi.restoreAllMocks();
   });
-  
+
   describe('POST /api/transcribe', () => {
     it('should successfully transcribe audio file', async () => {
       const mockTranscript = 'This is a test transcription of the audio file.';
-      (transcribeAudio as any).mockResolvedValue(mockTranscript);
-      
+      mockTranscribe.mockResolvedValue(mockTranscript);
+
       const response = await request(app)
         .post('/api/transcribe')
         .attach('audio', Buffer.from('mock audio data'), 'test-audio.webm');
-      
+
       expect(response.status).toBe(200);
       expect(response.body).toEqual({
         success: true,
-        data: { transcript: mockTranscript }
+        data: { transcript: mockTranscript },
       });
-      
-      expect(transcribeAudio).toHaveBeenCalledWith('/tmp/test-audio.webm');
-      expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/test-audio.webm');
+
+      // The uploaded file was handed to Whisper from the upload directory
+      expect(mockTranscribe).toHaveBeenCalledTimes(1);
+      const filePath = mockTranscribe.mock.calls[0][0];
+      expect(path.dirname(filePath)).toBe(uploadDir);
+      expect(path.basename(filePath)).toMatch(/-test-audio\.webm$/);
     });
-    
+
     it('should handle missing audio file', async () => {
-      // Mock multer to not provide a file
-      const appWithoutFile = express();
-      appWithoutFile.use(express.json());
-      appWithoutFile.post('/api/transcribe', (req, res) => {
-        if (!req.file) {
-          return res.status(400).json({
-            success: false,
-            error: 'No audio file provided'
-          });
-        }
-      });
-      
-      const response = await request(appWithoutFile)
-        .post('/api/transcribe');
-      
+      const response = await request(app).post('/api/transcribe');
+
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
         success: false,
-        error: 'No audio file provided'
+        error: 'No audio file provided',
       });
+      expect(mockTranscribe).not.toHaveBeenCalled();
     });
-    
+
     it('should handle transcription errors', async () => {
-      (transcribeAudio as any).mockRejectedValue(new Error('Transcription failed'));
-      
+      mockTranscribe.mockRejectedValue(new Error('Transcription failed'));
+
       const response = await request(app)
         .post('/api/transcribe')
         .attach('audio', Buffer.from('mock audio data'), 'test-audio.webm');
-      
+
       expect(response.status).toBe(500);
       expect(response.body).toEqual({
         success: false,
-        error: 'Failed to transcribe audio'
+        error: 'Failed to transcribe audio',
       });
     });
-    
+
+    it('should clean up the uploaded file when transcription fails', async () => {
+      mockTranscribe.mockRejectedValue(new Error('Transcription failed'));
+
+      await request(app)
+        .post('/api/transcribe')
+        .attach('audio', Buffer.from('mock audio data'), 'test-audio.webm');
+
+      expect(uploadedFiles()).toEqual([]);
+    });
+
     it('should handle different audio file formats', async () => {
-      const mockTranscript = 'Transcription of different format.';
-      (transcribeAudio as any).mockResolvedValue(mockTranscript);
-      
+      mockTranscribe.mockResolvedValue('Transcription of different format.');
+
       const formats = ['audio.webm', 'audio.mp3', 'audio.wav', 'audio.m4a'];
-      
+
       for (const format of formats) {
         const response = await request(app)
           .post('/api/transcribe')
           .attach('audio', Buffer.from('mock audio data'), format);
-        
+
         expect(response.status).toBe(200);
         expect(response.body.success).toBe(true);
       }
+      expect(mockTranscribe).toHaveBeenCalledTimes(formats.length);
     });
-    
+
     it('should handle large audio files', async () => {
-      const mockTranscript = 'Transcription of large audio file.';
-      (transcribeAudio as any).mockResolvedValue(mockTranscript);
-      
-      // Create a larger buffer to simulate a large file
-      const largeBuffer = Buffer.alloc(10 * 1024 * 1024); // 10MB
-      
+      mockTranscribe.mockResolvedValue('Transcription of large audio file.');
+
+      const largeBuffer = Buffer.alloc(10 * 1024 * 1024); // 10MB, under the 25MB limit
+
       const response = await request(app)
         .post('/api/transcribe')
         .attach('audio', largeBuffer, 'large-audio.webm');
-      
+
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
     });
-    
+
+    it('should reject files over the 25MB limit with a JSON 413', async () => {
+      const tooLarge = Buffer.alloc(25 * 1024 * 1024 + 1);
+
+      const response = await request(app)
+        .post('/api/transcribe')
+        .attach('audio', tooLarge, 'huge-audio.webm');
+
+      expect(response.status).toBe(413);
+      expect(response.body.success).toBe(false);
+      expect(mockTranscribe).not.toHaveBeenCalled();
+    });
+
     it('should clean up temporary files after processing', async () => {
-      const mockTranscript = 'Test transcription.';
-      (transcribeAudio as any).mockResolvedValue(mockTranscript);
-      
+      mockTranscribe.mockResolvedValue('Test transcription.');
+
       await request(app)
         .post('/api/transcribe')
         .attach('audio', Buffer.from('mock audio data'), 'test-audio.webm');
-      
-      expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/test-audio.webm');
+
+      const filePath = mockTranscribe.mock.calls[0][0];
+      expect(fs.unlinkSync).toHaveBeenCalledWith(filePath);
+      expect(uploadedFiles()).toEqual([]);
     });
-    
+
     it('should handle file cleanup errors gracefully', async () => {
-      const mockTranscript = 'Test transcription.';
-      (transcribeAudio as any).mockResolvedValue(mockTranscript);
-      (fs.unlinkSync as any).mockImplementation(() => {
+      mockTranscribe.mockResolvedValue('Test transcription.');
+      vi.mocked(fs.unlinkSync).mockImplementationOnce(() => {
         throw new Error('File cleanup failed');
       });
-      
+
       // Should still return success even if cleanup fails
       const response = await request(app)
         .post('/api/transcribe')
         .attach('audio', Buffer.from('mock audio data'), 'test-audio.webm');
-      
+
       expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
+      expect(response.body).toEqual({
+        success: true,
+        data: { transcript: 'Test transcription.' },
+      });
     });
   });
-  
+
   describe('Live Transcription Specific Tests', () => {
     it('should handle rapid successive requests (simulating live transcription)', async () => {
-      const mockTranscripts = [
-        'First chunk transcription.',
-        'Second chunk transcription.',
-        'Third chunk transcription.'
-      ];
-      
-      let callCount = 0;
-      (transcribeAudio as any).mockImplementation(() => {
-        return Promise.resolve(mockTranscripts[callCount++]);
+      // Each chunk's transcript is derived from its own file, so concurrent
+      // requests can't be mixed up regardless of completion order.
+      mockTranscribe.mockImplementation(async (filePath: string) => {
+        const name = path.basename(filePath).replace(/^\d+-/, '');
+        return `transcript of ${name}`;
       });
-      
-      // Send multiple requests rapidly
-      const promises = mockTranscripts.map((_, index) => 
-        request(app)
-          .post('/api/transcribe')
-          .attach('audio', Buffer.from(`chunk-${index}`), `chunk-${index}.webm`)
+
+      const chunks = [0, 1, 2];
+      const responses = await Promise.all(
+        chunks.map((index) =>
+          request(app)
+            .post('/api/transcribe')
+            .attach('audio', Buffer.from(`chunk-${index}`), `chunk-${index}.webm`),
+        ),
       );
-      
-      const responses = await Promise.all(promises);
-      
+
       responses.forEach((response, index) => {
         expect(response.status).toBe(200);
-        expect(response.body.data.transcript).toBe(mockTranscripts[index]);
+        expect(response.body.data.transcript).toBe(`transcript of chunk-${index}.webm`);
       });
+      expect(uploadedFiles()).toEqual([]);
     });
-    
+
     it('should handle empty audio chunks gracefully', async () => {
-      (transcribeAudio as any).mockResolvedValue('');
-      
+      mockTranscribe.mockResolvedValue('');
+
       const response = await request(app)
         .post('/api/transcribe')
         .attach('audio', Buffer.alloc(0), 'empty-audio.webm');
-      
+
       expect(response.status).toBe(200);
       expect(response.body.data.transcript).toBe('');
     });
-    
+
     it('should handle very short audio chunks', async () => {
-      const mockTranscript = 'Short audio.';
-      (transcribeAudio as any).mockResolvedValue(mockTranscript);
-      
+      mockTranscribe.mockResolvedValue('Short audio.');
+
       const response = await request(app)
         .post('/api/transcribe')
         .attach('audio', Buffer.from('short'), 'short-audio.webm');
-      
+
       expect(response.status).toBe(200);
-      expect(response.body.data.transcript).toBe(mockTranscript);
+      expect(response.body.data.transcript).toBe('Short audio.');
     });
   });
 });

@@ -110,6 +110,14 @@ export function HomePage() {
     }
     return () => {
       transcriberRef.current?.stop();
+    };
+    // Create the transcriber once per mount. (It used to depend on mediaStream, so
+    // starting a recording replaced the running transcriber with a fresh one and
+    // "Stop" then stopped the idle copy while the real one kept listening.)
+  }, []);
+  // Release the microphone stream when it is replaced or the page unmounts
+  useEffect(() => {
+    return () => {
       mediaStream?.getTracks().forEach(track => track.stop());
     };
   }, [mediaStream]);

@@ -1,4 +1,9 @@
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
+
+// jsdom has no canvas implementation; components that draw (AudioVisualizer)
+// already handle a missing 2D context, so return null instead of throwing.
+HTMLCanvasElement.prototype.getContext = (() => null) as any;
 
 // Mock MediaRecorder
 global.MediaRecorder = class MockMediaRecorder {

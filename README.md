@@ -55,7 +55,7 @@ MeetingScribe AI is a privacy-first, locally-powered meeting transcription and s
 - Administrator/sudo access (for installing Node.js and Ollama if needed)
 
 **For manual local setup:**
-- [Node.js](https://nodejs.org/) (v18 or higher)
+- [Node.js](https://nodejs.org/) (v22 or higher; the Vite 8 / Vitest 5 toolchain needs it)
 - [Ollama](https://ollama.ai/) for local AI models
 - A modern web browser with microphone support
 

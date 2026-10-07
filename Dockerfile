@@ -1,5 +1,5 @@
 # Multi-stage build for MeetingScribe AI
-FROM node:18-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 
 # Set working directory
 WORKDIR /app
@@ -7,8 +7,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (the build needs Vite and the other devDependencies)
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine AS production
+FROM node:22-alpine AS production
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -32,7 +32,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install production dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy built frontend from builder stage
 COPY --from=frontend-builder /app/dist ./dist

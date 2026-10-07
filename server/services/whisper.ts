@@ -5,11 +5,17 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Whisper API configuration
-const WHISPER_API_URL = process.env.WHISPER_API_URL || 'http://localhost:11434/api/generate';
-const WHISPER_MODEL = process.env.WHISPER_MODEL || 'whisper';
+// Whisper API configuration. Read on every call (not at import time) so the
+// values always reflect the current environment, e.g. after dotenv has loaded.
+function getWhisperConfig() {
+  return {
+    WHISPER_API_URL: process.env.WHISPER_API_URL || 'http://localhost:11434/api/generate',
+    WHISPER_MODEL: process.env.WHISPER_MODEL || 'whisper',
+  };
+}
 
 export async function transcribeAudio(audioFilePath: string): Promise<string> {
+  const { WHISPER_API_URL, WHISPER_MODEL } = getWhisperConfig();
   try {
     console.log(`🔍 Starting Whisper transcription for: ${audioFilePath}`);
     console.log(`🌐 Whisper API URL: ${WHISPER_API_URL}`);
@@ -27,27 +33,35 @@ export async function transcribeAudio(audioFilePath: string): Promise<string> {
 
     // For Ollama Whisper, we need to use the correct API format
     // Ollama Whisper expects the audio as base64 in the request body
-    const response = await fetch(WHISPER_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: WHISPER_MODEL,
-        prompt: "Transcribe the following audio to text. Return only the transcribed text without any additional formatting or commentary.",
-        stream: false,
-        context: [],
-        options: {
-          temperature: 0.0,
-          top_p: 0.9,
-          top_k: 40,
-          repeat_penalty: 1.1,
-          num_ctx: 2048
+    let response: Response;
+    try {
+      response = await fetch(WHISPER_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        // For Ollama Whisper, we need to include the audio data
-        audio: audioBase64
-      })
-    });
+        body: JSON.stringify({
+          model: WHISPER_MODEL,
+          prompt: "Transcribe the following audio to text. Return only the transcribed text without any additional formatting or commentary.",
+          stream: false,
+          context: [],
+          options: {
+            temperature: 0.0,
+            top_p: 0.9,
+            top_k: 40,
+            repeat_penalty: 1.1,
+            num_ctx: 2048
+          },
+          // For Ollama Whisper, we need to include the audio data
+          audio: audioBase64
+        })
+      });
+    } catch (networkError) {
+      // fetch() only rejects when the server can't be reached at all (DNS failure,
+      // connection refused, reset...). Any such failure means Whisper is unavailable.
+      console.warn('⚠️ Whisper API not reachable, using fallback transcription:', networkError);
+      return await fallbackTranscription(audioFilePath);
+    }
 
     const requestTime = Date.now() - requestStartTime;
     console.log(`⏱️ Whisper API request took: ${requestTime}ms`);
@@ -70,7 +84,8 @@ export async function transcribeAudio(audioFilePath: string): Promise<string> {
     console.log(`📥 Whisper API response received`);
     console.log(`📝 Raw response:`, JSON.stringify(result, null, 2));
     
-    if (result.response) {
+    // An empty string is a valid result (e.g. a silent live-transcription chunk).
+    if (typeof result?.response === 'string') {
       const transcript = result.response.trim();
       console.log(`✅ Transcription successful: "${transcript}"`);
       return transcript;

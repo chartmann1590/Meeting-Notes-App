@@ -9,19 +9,23 @@ export default defineConfig({
     minify: true,
     sourcemap: 'inline', // Use inline source maps for better error reporting
     chunkSizeWarningLimit: 1000, // Increase warning limit to 1MB
-    rollupOptions: {
+    // Vite 8 bundles with Rolldown: the object form of manualChunks is gone,
+    // so the same vendor split is expressed as codeSplitting groups.
+    rolldownOptions: {
       output: {
         sourcemapExcludeSources: false, // Include original source in source maps
-        manualChunks: {
-          // Split vendor libraries into separate chunks
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs'],
-          'utils-vendor': ['date-fns', 'clsx', 'tailwind-merge'],
-          'ai-vendor': ['openai', 'zustand'],
+        codeSplitting: {
+          groups: [
+            { name: 'react-vendor', test: /node_modules[\\/](react|react-dom|react-router-dom|react-router|scheduler)[\\/]/ },
+            { name: 'ui-vendor', test: /node_modules[\\/]@radix-ui[\\/]react-(dialog|dropdown-menu|tabs)[\\/]/ },
+            { name: 'utils-vendor', test: /node_modules[\\/](date-fns|clsx|tailwind-merge)[\\/]/ },
+            { name: 'ai-vendor', test: /node_modules[\\/](openai|zustand)[\\/]/ },
+          ],
         },
       },
     },
   },
+
   // Enable source maps in development too
   css: {
     devSourcemap: true,
@@ -38,7 +42,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
   optimizeDeps: {

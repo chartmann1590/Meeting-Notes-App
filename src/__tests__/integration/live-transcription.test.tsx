@@ -2,16 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { HomePage } from '../../pages/HomePage';
 import { RealTranscriber } from '../../lib/real-transcriber';
+import { useMeetingStore } from '../../hooks/use-meeting-store';
 
 // Mock the RealTranscriber
 vi.mock('../../lib/real-transcriber', () => ({
-  RealTranscriber: vi.fn().mockImplementation(() => ({
+  // `function` (not an arrow) so the mock can be called with `new`, as Vitest 3+ requires
+  RealTranscriber: vi.fn().mockImplementation(function () { return {
     isSupported: () => true,
     hasBrowserRecognition: () => true,
     getTranscriptionMethod: () => 'Browser Speech Recognition',
     start: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn()
-  }))
+  }; })
 }));
 
 // Mock framer-motion
@@ -53,6 +55,9 @@ describe('Live Transcription Integration', () => {
   
   beforeEach(() => {
     vi.clearAllMocks();
+    // The zustand store is a module singleton: reset it so state (e.g. isRecording)
+    // doesn't leak from one test into the next.
+    useMeetingStore.getState().reset();
     
     // Setup mock transcriber
     mockTranscriber = {
@@ -63,7 +68,7 @@ describe('Live Transcription Integration', () => {
       stop: vi.fn()
     };
     
-    (RealTranscriber as any).mockImplementation(() => mockTranscriber);
+    (RealTranscriber as any).mockImplementation(function () { return mockTranscriber; });
     
     // Mock successful microphone access
     mockGetUserMedia.mockResolvedValue(new MockMediaStream());
@@ -106,8 +111,9 @@ describe('Live Transcription Integration', () => {
     });
     
     it('should stop recording and generate summary', async () => {
-      // Mock fetch for summary generation
-      global.fetch = vi.fn().mockResolvedValue({
+      // Summary request is held open so the in-between "Summarizing..." state is observable
+      let resolveSummary!: (value: unknown) => void;
+      const summaryResponse = {
         ok: true,
         json: () => Promise.resolve({
           success: true,
@@ -120,8 +126,18 @@ describe('Live Transcription Integration', () => {
             }
           }
         })
+      };
+      global.fetch = vi.fn((url: string) =>
+        url === '/api/summarize'
+          ? new Promise((resolve) => { resolveSummary = resolve; })
+          : Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, data: {} }) })
+      ) as any;
+
+      // Simulate the transcriber producing some text, otherwise there is nothing to summarize
+      mockTranscriber.start.mockImplementation(async (onUpdate: (t: string) => void) => {
+        onUpdate('Hello team, let us review the roadmap.');
       });
-      
+
       render(<HomePage />);
       
       // Start recording
@@ -144,6 +160,30 @@ describe('Live Transcription Integration', () => {
       await waitFor(() => {
         expect(screen.getByText('Summarizing...')).toBeInTheDocument();
       });
+      expect(global.fetch).toHaveBeenCalledWith('/api/summarize', expect.objectContaining({ method: 'POST' }));
+
+      resolveSummary(summaryResponse);
+      await waitFor(() => {
+        expect(screen.getByText('Test meeting summary')).toBeInTheDocument();
+      });
+    });
+
+    it('should stop the same transcriber instance that was started', async () => {
+      render(<HomePage />);
+
+      fireEvent.click(screen.getByText('Start Recording'));
+      await waitFor(() => {
+        expect(screen.getByText('Stop Recording')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Stop Recording'));
+      await waitFor(() => {
+        expect(mockTranscriber.stop).toHaveBeenCalled();
+      });
+
+      // Starting a recording must not swap in a fresh transcriber; otherwise
+      // "Stop" stops an idle instance while the real one keeps listening.
+      expect(RealTranscriber).toHaveBeenCalledTimes(1);
     });
   });
   
@@ -220,7 +260,8 @@ describe('Live Transcription Integration', () => {
     it('should have proper ARIA labels and roles', () => {
       render(<HomePage />);
       
-      const startButton = screen.getByText('Start Recording');
+      // The label sits in a <span> inside the button, so query by role + accessible name
+      const startButton = screen.getByRole('button', { name: /Start Recording/ });
       expect(startButton).toBeInTheDocument();
       expect(startButton.tagName).toBe('BUTTON');
     });
@@ -228,7 +269,7 @@ describe('Live Transcription Integration', () => {
     it('should be keyboard accessible', () => {
       render(<HomePage />);
       
-      const startButton = screen.getByText('Start Recording');
+      const startButton = screen.getByRole('button', { name: /Start Recording/ });
       
       // Should be focusable
       startButton.focus();
