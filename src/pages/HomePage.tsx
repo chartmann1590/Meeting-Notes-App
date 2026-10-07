@@ -59,7 +59,7 @@ const ContentCard: React.FC<{
     toast.success(`${title} copied to clipboard!`);
   };
   return (
-    <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-md rounded-xl w-full overflow-hidden">
+    <Card className="bg-white/80 backdrop-blur-xs border-slate-200 shadow-md rounded-xl w-full overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b bg-slate-50/50">
         <div className="flex items-center gap-3">
           {icon}

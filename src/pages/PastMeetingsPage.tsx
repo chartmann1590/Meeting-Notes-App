@@ -31,10 +31,10 @@ export function PastMeetingsPage() {
       ) : pastMeetings.length > 0 ? (
         <Accordion type="single" collapsible className="w-full space-y-4">
           {pastMeetings.map((meeting) => (
-            <AccordionItem key={meeting.id} value={meeting.id} className="border rounded-lg bg-white shadow-sm">
+            <AccordionItem key={meeting.id} value={meeting.id} className="border rounded-lg bg-white shadow-xs">
               <AccordionTrigger className="px-6 py-4 hover:no-underline">
                 <div className="flex items-start gap-4 text-left w-full">
-                  <History className="h-5 w-5 text-slate-500 flex-shrink-0 mt-1" />
+                  <History className="h-5 w-5 text-slate-500 shrink-0 mt-1" />
                   <div className="flex-1">
                     <div className="font-semibold">Meeting from {format(new Date(meeting.createdAt), "PPP p")}</div>
                     <p className="text-sm text-slate-500 font-normal mt-1">{meeting.summary.summary.substring(0, 100)}...</p>
